@@ -113,6 +113,13 @@ add a smaller and much better measured amount: paired against f5 at five fixed d
 moves by +0.0004, +0.0028, +0.0051, +0.0095 and +0.0034 (mean +0.004), 6 to 9 of the 10 games
 improve at each one, and the Metrica half is up in three of four.
 
+The U-Net is a second *family*, not a better model: alone it scores 0.739 against the GRU's 0.745,
+and pairing the two without LightGBM is worse than the shipped blend. With LightGBM in it, the
+0.25/0.50/0.25 blend beats the two-model blend at every decoder tested: +0.0047 at (10,40,0.5),
++0.0056 at (15,40,0.5) and +0.0024 at (15,80,0.5), with the Metrica half up +0.007/+0.009/+0.004
+and 7-8 of the 10 games up. That is why it is in the final model even though its own score is
+lower.
+
 Tried and dropped: a per-player set encoder (0.714), a 12.5 fps GRU (no gain), sticky training
 labels (worse), minimum-duration / asymmetric decoders (no gain), self-training on the
 held-out game (noise), SkillCorner's 20 A-League games as extra training data (0.751), pitch
@@ -152,6 +159,12 @@ python evaluation/validate_submission.py submissions/<team_name>.csv
 
 The run is deterministic: fixed seeds, deterministic LightGBM, `torch.use_deterministic_algorithms`,
 and probabilities rounded to 1e-4 before decoding. Two builds on the same device produce
-bit-identical files. The default device is CPU (about 1 hour). `MTAH_DEVICE=cuda` takes minutes
-and is also bit-identical run to run, but GPU and CPU builds differ on ~2% of frames because the
-networks train to slightly different weights, so the submitted file names the device used.
+bit-identical files — verified both after a warm start and from an empty `cache/`, where the whole
+chain (tracking cache, 3.45M video blobs, video ball, features, seven models) is rebuilt from the
+provided data alone. The default device is CPU (a couple of hours; the U-Net is the slow part).
+`MTAH_DEVICE=cuda` takes about 25 minutes and is also bit-identical run to run, but GPU and CPU
+builds differ on ~2% of frames because the networks train to slightly different weights, so the
+submitted file names the device used.
+
+The submitted file is `submissions/f6unet_gpu_FINAL.csv`, sha256 prefix `7d16f273b7f7b6da`,
+built on an RTX 4090 with `MTAH_DEVICE=cuda`.

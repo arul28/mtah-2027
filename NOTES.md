@@ -338,6 +338,33 @@ is compared with another's.
   0.7518 vs 0.7551 at (15,40), 5/10 then 2/10 games up, G3 clearly worse (-0.012, -0.018). The
   dead-ball decision does not need more explicit evidence; it already reads the velocity collapse
   and the set-piece tags.
+- **Metrica-family weighting (rejected).** Repeating the three Metrica games 2x or 3x in training,
+  on the theory that the challenge match is a Metrica game. At (10,40,0.5) the Metrica half goes
+  0.7999 -> 0.8028 (x2) and -> 0.8095 (x3), but at (15,40,0.5) both give only +0.0015/+0.0010, and
+  the per-game pattern is not monotone in the weight (G2: +0.015 at x3, -0.007 at x2). The
+  mechanism check kills it: the predicted dead-ball share does not move toward Metrica's at all
+  (G2 0.374 -> 0.373 -> 0.382 against a 0.273 ground truth, G3 0.321 -> 0.328 against 0.285), so
+  the gain is not the family prior it was supposed to be. 3 games is too few to separate this from
+  noise; `metrica_weight` stays 1.
+- **U-Net at 8.3 fps as a 4th family (rejected).** `seq4` with step 3 (a genuinely different
+  temporal resolution) is no better alone (0.7402 vs 0.7404) and the 4-way blend at weight
+  0.20/0.40/0.20/0.20 moves both by +0.0006 at (10,40,0.5) and -0.0013 at (15,40,0.5); Metrica is
+  up +0.006/+0.001 but DFL is down -0.004. Inside noise, so the U-Net family stays single-scale.
+- **A caveat learned the hard way**: `experiment4` does not call `final.set_determinism()`, so two
+  e4 runs of the *same* configuration differ by about +-0.002 on the per-family numbers (torch
+  CUDA conv training is not bit-reproducible without deterministic algorithms). That is the same
+  order as most of today's candidate gains, which is exactly why the rejections above are
+  rejections, and why only the paired, within-run comparisons were trusted. `final.py` does set
+  determinism and two full builds are byte-identical, so the shipped file is unaffected.
+- **Output sanity**: the final file has 293 possessions over 60.2 alive minutes (4.87/min) with a
+  median possession of 6.6 s. Metrica's own event-derived possessions run at 4.3-5.1/min with a
+  median of 5.7-7.1 s, so the submitted segmentation sits inside the vendor's own distribution, not
+  just inside the dev score.
+- **Auxiliary change-point head on the U-Net (rejected).** With `aux=0.3`, an extra head predicts
+  how many frames remain until the next label change (8 bins), which is the quantity the decoder
+  actually needs but the frame loss never states. It is worse alone (0.7371 vs 0.7407) and in the
+  blend it is dead flat: -0.0002 at (10,40,0.5) and -0.0001 at (15,40,0.5), 3-4/10 games up. The
+  code stays behind `aux=0` (default) so it can be rerun.
 - **Decoder choice re-checked per family.** Picking (c_turn, c_dead, bias_d) leave-one-out inside
   the Metrica family gives 0.7883 against 0.7999 for the shipped (10, 40, 0.5): the shipped costs
   are the best family-constant choice for our vendor (0.7999 vs 0.8010 for the argmax, i.e. within

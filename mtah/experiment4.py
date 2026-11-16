@@ -116,7 +116,7 @@ def main(args):
         train_keys += [k for k in list(train.keys()) if k[1] in dev.METRICA
                        ] * (args.metrica_weight - 1)
     print("loaded %d games t=%.0fs" % (len(gs), time.time() - t0), flush=True)
-    probs = {"lgb": {}, "gru": {}, "unet": {}}
+    probs = {"lgb": {}, "gru": {}, "unet": {}, "unet3": {}, "uneta": {}}
     for g in gs:
         keys = [k for k in train_keys if k[1] != g]
         Xs = [train[k][0] for k in keys]
@@ -132,6 +132,16 @@ def main(args):
                                           hidden=args.hidden),
                                evald[g][0], evald[g][3]) for k in range(args.unet)]
             probs["unet"][g] = np.mean(us, 0)
+        if args.unet3:
+            us = [seq4.predict(seq4.train(Xs, ys, epochs=args.epochs, seed=200 + k,
+                                          hidden=args.hidden, step=3),
+                               evald[g][0], evald[g][3]) for k in range(args.unet3)]
+            probs["unet3"][g] = np.mean(us, 0)
+        if args.unet_aux:
+            us = [seq4.predict(seq4.train(Xs, ys, epochs=args.epochs, seed=300 + k,
+                                          hidden=args.hidden, aux=args.unet_aux),
+                               evald[g][0], evald[g][3]) for k in range(args.unet)]
+            probs["uneta"][g] = np.mean(us, 0)
     print("trained t=%.0fs" % (time.time() - t0), flush=True)
     out = {}
     for name, p in probs.items():
@@ -150,6 +160,24 @@ def main(args):
             p = {g: 0.2 * probs["lgb"][g] + 0.45 * probs["gru"][g] + 0.35 * probs["unet"][g]
                  for g in gs}
             out["ens3"] = report(sweep(evald, p, targets), "ens lgb .2 gru .45 unet .35")
+    if probs["unet3"] and probs["gru"]:
+        combos = {
+            "ens4": (0.20, 0.40, 0.20, 0.20),
+            "ens4b": (0.25, 0.35, 0.20, 0.20),
+            "ens4c": (0.20, 0.35, 0.225, 0.225),
+        }
+        for name, (wl, wg, wu, wu3) in combos.items():
+            p = {g: wl * probs["lgb"][g] + wg * probs["gru"][g] + wu * probs["unet"][g]
+                 + wu3 * probs["unet3"][g] for g in gs}
+            out[name] = report(sweep(evald, p, targets), "ens lgb/gru/unet/unet3 %s" % (
+                "/".join("%.2f" % v for v in (wl, wg, wu, wu3))))
+    if probs["uneta"] and probs["gru"] and probs["lgb"]:
+        for name, (wl, wg, wu) in {"ensaux": (0.25, 0.50, 0.25),
+                                   "ensaux4": (0.20, 0.40, 0.20)}.items():
+            p = {g: wl * probs["lgb"][g] + wg * probs["gru"][g]
+                 + (1 - wl - wg) * probs["uneta"][g] for g in gs}
+            out[name] = report(sweep(evald, p, targets), "ens with aux U-Net lgb %.2f gru %.2f"
+                               % (wl, wg))
     with open(os.path.join(dev.EXT, "result4_{}.json".format(args.tag)), "w") as fh:
         json.dump({k: [list(v[0]), v[1]] for k, v in out.items()}, fh)
     print("done t=%.0fs" % (time.time() - t0))
@@ -164,6 +192,8 @@ if __name__ == "__main__":
     ap.add_argument("--metrica-weight", type=int, default=1)  # repeat the Metrica games K times
     ap.add_argument("--gru", type=int, default=1)
     ap.add_argument("--unet", type=int, default=0)  # number of 1-D U-Net seeds (mtah/seq4.py)
+    ap.add_argument("--unet3", type=int, default=0)  # the same at 8.3 fps (a 4th family)
+    ap.add_argument("--unet-aux", type=float, default=0.0)  # aux change-point loss weight
     ap.add_argument("--lgb", type=int, default=1)
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--hidden", type=int, default=128)

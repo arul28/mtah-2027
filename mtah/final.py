@@ -25,6 +25,7 @@ CONFIG = {
     "train_seeds": (0, 1, 2),     # degraded copies of each dev game
     "dfl_tau": 0.0,               # stickiness of the DFL training labels (s)
     "skillcorner": False,         # add the 20 SkillCorner games to training
+    "metrica_weight": 1,          # repeat the Metrica-vendor games K times (the match is one)
     "symmetries": 1,              # 1 none, 2 home/away swap, 4 swap and width mirror (mtah/symm.py)
     "vball": True,             # match ball corrected by the tactical video (mtah/vball.py)
     "ball_smooth": 0.0,           # dev ball made as smooth as the ATD's (degrade.BALL_SMOOTH)
@@ -61,8 +62,10 @@ def training_set(cfg):
             _, X, y, p = dev.load_match(g, seed=s)
             if cfg["tags"]:
                 X = np.concatenate([X, dev.tag_block(y, p, 100 + s)[1]], 1)
-            Xs.append(X)
-            ys.append(y if g in dev.METRICA else dev.sticky(y, p, cfg["dfl_tau"]))
+            n = cfg.get("metrica_weight", 1) if g in dev.METRICA else 1
+            for _ in range(n):
+                Xs.append(X)
+                ys.append(y if g in dev.METRICA else dev.sticky(y, p, cfg["dfl_tau"]))
     for g in (dev.skillcorner() if cfg["skillcorner"] else []):
         _, X, y, p = dev.load_match(g, seed=0)
         if cfg["tags"]:
@@ -86,6 +89,8 @@ def probabilities(cfg):
     if cfg["vball"] or cfg["ball_sharp"]:
         video_ball()
     seq.DEVICE = os.environ.get("MTAH_DEVICE", "cpu")
+    from mtah import seq4
+    seq4.DEVICE = seq.DEVICE
     Xs, ys = training_set(cfg)
     match.VBALL = cfg["vball"]
     names, Xm = match.load_features()
