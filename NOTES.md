@@ -293,6 +293,14 @@ is compared with another's.
     (much worse), boundary snapping at 12/25/50/100 frames, merging short D gaps, dropping short
     spells: all inside +-0.003 on Metrica or negative. Nothing adopted.
 - **Value of ball coverage, measured directly**: e4 with the held-out ball at presence 0.95/0.35
-  instead of the tracked ball's 0.85/0.17 (training unchanged), to see what more coverage would
-  buy. Result: see below.
+  instead of the tracked ball's 0.85/0.17 (training unchanged). Result: ens 0.3 both 0.7549 (DFL
+  0.7182, Metrica 0.7917) against 0.7502 (0.7067 / 0.7936) for the f6 run. The whole gain is on DFL
+  (+0.011) because the Metrica games keep their own ball gaps, so it says a more complete ball is
+  worth about +0.006 overall - a smaller prize than the +0.035 oracle bound, and it is not what the
+  global tracker above delivers.
+- **f7 features** (distance from each team's block to the ball, goal-side player counts, players
+  near the ball's projected position one second ahead): ens 0.3 both 0.7484 at its own best point.
+  Paired against f6 at fixed decoders: +0.0010 at (10,40,0.5) with 7/10 games up, -0.0017 at
+  (15,40,0.5) and -0.0018 at (15,80,0.5) with 2-3/10 up. Inside noise; not adopted. The code stays
+  behind `VERSION >= "f7"` so the experiment can be rerun.
 

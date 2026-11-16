@@ -88,6 +88,7 @@ def main(args):
         evald[g] = (X, y, period, dev.runs_of(period))
     if args.eval_present:
         os.environ.pop("MTAH_PRESENT", None)
+        degrade.PRESENT_ALIVE, degrade.PRESENT_DEAD = 0.85, 0.17
     train = {}
     degrade.BALL_SMOOTH, degrade.BALL_SHARP = args.train_smooth, bool(args.train_sharp)
     for s in args.train_seeds:

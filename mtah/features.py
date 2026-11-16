@@ -13,6 +13,9 @@ import numpy as np
 
 FPS = 25
 VERSION = "f6"  # bump when features change; it is part of every feature cache filename
+# (f7 = block-to-ball distance, goal-side counts and players near the ball's projected position was
+#  tested on the same protocol: +0.001 at (10,40,0.5) but -0.002 at (15,40) and (15,80), 7/10 then
+#  2-3/10 games up. Inside noise, so not adopted; set VERSION = "f7" to reproduce it.)
 
 
 def to_metres(xy, pitch):
@@ -325,6 +328,26 @@ def frame_features(home, away, home_spd, away_spd, ball, period, pitch):
         for half in (250, 500):
             f["last_kick_l%d" % half] = rolling_mean(f["last_kick"], half, "past")
             f["last_recv_l%d" % half] = rolling_mean(f["last_recv"], half, "past")
+
+    if VERSION >= "f7":
+        # where the ball is relative to each team's block, and to where it is going
+        bf = ffill(Bm)
+        vbx = np.zeros((T, 2))
+        vbx[3:-3] = (Bm[6:] - Bm[:-6]) / 6.0
+        vbx[~present] = 0.0
+        fut = bf + vbx * 25.0
+        for name, P in (("h", H), ("a", A)):
+            own = P[..., 0] if name == "h" else -P[..., 0]
+            bown = bf[:, 0] if name == "h" else -bf[:, 0]
+            f[name + "_bdist"] = np.hypot(f[name + "_cx"] - bf[:, 0], f[name + "_cy"] - bf[:, 1])
+            # players between the ball and this team's own goal, and ahead of it
+            f[name + "_n_goalside"] = np.sum(own < bown[:, None], axis=1).astype(np.float32)
+            f[name + "_n_fut"] = np.sum(
+                np.hypot(P[..., 0] - fut[:, None, 0], P[..., 1] - fut[:, None, 1]) < 8.0,
+                axis=1).astype(np.float32)
+        f["bdist_diff"] = f["a_bdist"] - f["h_bdist"]
+        f["goalside_diff"] = f["h_n_goalside"] - f["a_n_goalside"]
+        f["n_fut_diff"] = f["h_n_fut"] - f["a_n_fut"]
 
     f["dmin_diff"] = f["a_dmin"] - f["h_dmin"]
     f["dmin_last_diff"] = f["a_dmin_last"] - f["h_dmin_last"]
