@@ -109,10 +109,16 @@ def main(args):
         train[(0, g)] = (X, y)
     targets = {te: {g: dev.sticky(evald[g][1], evald[g][2], te) for g in gs if g not in dev.METRICA}
                for te in TAU_EVAL}
+    train_keys = list(train.keys())
+    if args.metrica_weight > 1:
+        # the challenge match is a Metrica-vendor game, so weight the three Metrica games up: the
+        # two families disagree about how sticky a possession is (see NOTES, tau-mix)
+        train_keys += [k for k in list(train.keys()) if k[1] in dev.METRICA
+                       ] * (args.metrica_weight - 1)
     print("loaded %d games t=%.0fs" % (len(gs), time.time() - t0), flush=True)
     probs = {"lgb": {}, "gru": {}, "unet": {}}
     for g in gs:
-        keys = [k for k in train if k[1] != g]
+        keys = [k for k in train_keys if k[1] != g]
         Xs = [train[k][0] for k in keys]
         ys = [train[k][1] for k in keys]
         if args.lgb:
@@ -155,6 +161,7 @@ if __name__ == "__main__":
     ap.add_argument("--train-seeds", type=int, nargs="+", default=[0])
     ap.add_argument("--tau-train", type=float, default=0.0)
     ap.add_argument("--tau-mix", type=int, default=0)  # 1 = draw tau per (seed, game)
+    ap.add_argument("--metrica-weight", type=int, default=1)  # repeat the Metrica games K times
     ap.add_argument("--gru", type=int, default=1)
     ap.add_argument("--unet", type=int, default=0)  # number of 1-D U-Net seeds (mtah/seq4.py)
     ap.add_argument("--lgb", type=int, default=1)

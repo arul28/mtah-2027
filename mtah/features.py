@@ -15,7 +15,9 @@ FPS = 25
 VERSION = "f6"  # bump when features change; it is part of every feature cache filename
 # (f7 = block-to-ball distance, goal-side counts and players near the ball's projected position was
 #  tested on the same protocol: +0.001 at (10,40,0.5) but -0.002 at (15,40) and (15,80), 7/10 then
-#  2-3/10 games up. Inside noise, so not adopted; set VERSION = "f7" to reproduce it.)
+#  2-3/10 games up. f8 = stoppage evidence (everyone standing, the ball not moving, out of play)
+#  was 0.7493 vs 0.7505 at (10,40,0.5) and 0.7518 vs 0.7551 at (15,40), with G3 clearly worse.
+#  Both are inside noise and negative where it matters, so not adopted; set VERSION to reproduce.)
 
 
 def to_metres(xy, pitch):
@@ -351,6 +353,27 @@ def frame_features(home, away, home_spd, away_spd, ball, period, pitch):
         f["bdist_diff"] = f["a_bdist"] - f["h_bdist"]
         f["goalside_diff"] = f["h_n_goalside"] - f["a_n_goalside"]
         f["n_fut_diff"] = f["h_n_fut"] - f["a_n_fut"]
+
+    if VERSION >= "f8":
+        # stoppage evidence: everyone standing, the ball not moving, the ball out of play
+        n_still_all = np.nan_to_num(f["h_n_still"]) + np.nan_to_num(f["a_n_still"])
+        for name, S in (("h", home_spd), ("a", away_spd)):
+            f[name + "_n_walk"] = np.nansum(S < 1.5, axis=1).astype(np.float32)
+        f["n_walk_all"] = f["h_n_walk"] + f["a_n_walk"]
+        f["n_still_all"] = n_still_all
+        calm = n_still_all >= 12
+        f["calm"] = calm.astype(np.float32)
+        f["calm_run"] = np.minimum(frames_since(~calm), 1500)
+        f["calm_after"] = np.minimum(frames_since(calm[::-1])[::-1], 1500)
+        # a ball that is not visibly moving (absent counts: it is held, or off the pitch)
+        ball_slow = np.nan_to_num(f["ball_v"], nan=0.0) < 1.0
+        f["ball_static_run"] = np.minimum(frames_since(~ball_slow), 1500)
+        out_play = f["ball_out"] > 0.0
+        f["ball_out_run"] = np.minimum(frames_since(~out_play), 1500)
+        f["ball_out_after"] = np.minimum(frames_since(out_play[::-1])[::-1], 1500)
+        for key in ("calm", "ball_static_run", "ball_out_run", "n_walk_all"):
+            for half in (50, 125, 250):
+                f["{}_c{}".format(key, half)] = rolling_mean(f[key], half)
 
     f["dmin_diff"] = f["a_dmin"] - f["h_dmin"]
     f["dmin_last_diff"] = f["a_dmin_last"] - f["h_dmin_last"]

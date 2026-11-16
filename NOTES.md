@@ -1,5 +1,13 @@
 # Lab log
 
+**Current best submission: `submissions/f6unet_gpu_FINAL.csv`** (sha256 `7d16f273b7f7b6da`, two GPU
+builds byte-identical, valid, 293 possessions). Config: f6 features, video-corrected ball
+(`vball`), Smart Tagging, LightGBM 0.25 + six bi-GRUs 0.50 + four 1-D U-Nets 0.25, Viterbi
+(10, 40, 0.5), pre-kickoff dead rule. Dev (leave-one-game-out, match-like ball, shipped decoder):
+DFL 0.701, Metrica 0.800, both **0.751**. `python -m mtah.final` rebuilds it from the provided
+data alone (verified from an empty `cache/`). Previous best: `f6_gpu1.csv` (`a67bcbe837b1abfc`),
+before that `vball_gpu_FINAL.csv` (`4b8390df06c0cfed`).
+
 ## 2026-11-08: setup and first findings
 
 - Baseline reproduces byte-for-byte; the public-window board matches the README.
@@ -319,6 +327,17 @@ is compared with another's.
     Valid, 293 possessions, 98.8% frame agreement with the previous best. Public-window wiring
     check: spellF1 0.629, macroF1 0.835 (the previous best was 0.629 / 0.832), so nothing about the
     wiring changed - as a selection signal it is inside the window's noise, as always.
+- **τ-mixture training labels (rejected).** Drawing a stickiness τ ∈ {0,1,2,3,4} per (seed, game)
+  for the DFL training labels (`--tau-mix`): the DFL score jumps (3-way blend at (10,40,0.5) 0.7012
+  -> 0.7298, all seven DFL games up by +0.009 to +0.058) and every Metrica game falls (0.7999 ->
+  0.7650, -0.047/-0.028/-0.029). That is the DFL/Metrica label-definition difference showing up in
+  the training target: DFL's event labels are fragmented and want stickier training, Metrica's want
+  sharp boundaries. Our match is Metrica-like, so the raw labels stay.
+- **Stoppage features f8 (rejected).** Everyone-standing run length and shares, the ball not
+  visibly moving, the ball out of play and their rolling means: 0.7493 vs 0.7505 at (10,40,0.5) and
+  0.7518 vs 0.7551 at (15,40), 5/10 then 2/10 games up, G3 clearly worse (-0.012, -0.018). The
+  dead-ball decision does not need more explicit evidence; it already reads the velocity collapse
+  and the set-piece tags.
 - **Decoder choice re-checked per family.** Picking (c_turn, c_dead, bias_d) leave-one-out inside
   the Metrica family gives 0.7883 against 0.7999 for the shipped (10, 40, 0.5): the shipped costs
   are the best family-constant choice for our vendor (0.7999 vs 0.8010 for the argmax, i.e. within
