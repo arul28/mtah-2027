@@ -213,6 +213,7 @@ def merge(atd_m, vid, det, min_run=5):
 def main():
     from mtah import match
     t0 = time.time()
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fr, xy, blob = candidate_arrays()
     st_path = os.path.join(ROOT, "cache", "cand_static.npz")
     if os.path.exists(st_path):

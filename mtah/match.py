@@ -50,6 +50,7 @@ def team_arrays():
 
 
 def load_features(refresh=False):
+    os.makedirs(os.path.join(ROOT, "cache"), exist_ok=True)
     path = os.path.join(ROOT, "cache", "features_BAR-ATH_{}{}{}.npz".format(
         features.VERSION, "_bc" if BC_BALL else "", "_vb" if VBALL else ""))
     if os.path.exists(path) and not refresh:
@@ -78,6 +79,7 @@ def tag_block():
 def load_players(step=5):
     """Per-player tensors (mtah/players.py) for the competition match. Cached."""
     from mtah import players
+    os.makedirs(os.path.join(ROOT, "cache"), exist_ok=True)
     path = os.path.join(ROOT, "cache", "players_BAR-ATH_k{}.npz".format(step))
     if os.path.exists(path):
         c = np.load(path)

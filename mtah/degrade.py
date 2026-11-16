@@ -23,6 +23,7 @@ def _runs(mask):
 def measure_atd_stats():
     """Ball present/missing run lengths and player presence on the competition match."""
     from mtah import atd, match
+    os.makedirs(os.path.dirname(STATS), exist_ok=True)
     d = atd.load()
     graded = match.graded_mask(len(d["ball"]))
     present = ~np.isnan(d["ball"][:, 0])

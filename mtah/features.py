@@ -29,10 +29,13 @@ def home_attack_sign(home_x, period):
     """+1 where home attacks +x, per frame. Decided per period from where home's deepest player
     (normally the goalkeeper) sits: the side its extreme player hugs is the side it defends."""
     sign = np.ones(len(period), dtype=np.float32)
+    import warnings
     for p in np.unique(period):
         m = period == p
-        lo = np.nanmin(home_x[m], axis=1)
-        hi = np.nanmax(home_x[m], axis=1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")   # an all-NaN row is a frame with nobody tracked
+            lo = np.nanmin(home_x[m], axis=1)
+            hi = np.nanmax(home_x[m], axis=1)
         # the goalkeeper keeps an extreme near its own goal line most of the half
         defends_left = np.nanmedian(lo) + np.nanmedian(hi) > 0  # hugs -x more than +x
         sign[m] = 1.0 if defends_left else -1.0

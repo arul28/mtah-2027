@@ -64,6 +64,7 @@ def work(span):
 
 def main():
     t0 = time.time()
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     edges = np.linspace(0, N_FRAMES, WORKERS * 4 + 1).astype(int)
     spans = list(zip(edges[:-1].tolist(), edges[1:].tolist()))
     with cf.ProcessPoolExecutor(WORKERS) as ex:

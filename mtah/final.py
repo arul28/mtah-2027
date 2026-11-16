@@ -33,6 +33,7 @@ CONFIG = {
     "gru_models": 6,
     "gru_epochs": 20,
     "gru_hidden": 128,
+    "unet_models": 0,             # 1-D U-Net seeds added to the blend (mtah/seq4.py)
     "lgb_weight": 0.3,
     "c_turn": 10.0,
     "c_dead": 40.0,

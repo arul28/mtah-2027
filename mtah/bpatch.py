@@ -474,6 +474,7 @@ def score(cpu=False):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="python -m mtah.bpatch")
+    os.makedirs(CACHE, exist_ok=True)
     ap.add_argument("cmd", choices=("extract", "train", "score"))
     ap.add_argument("--cpu", action="store_true", help="CPU-deterministic path")
     ap.add_argument("--epochs", type=int, default=20)

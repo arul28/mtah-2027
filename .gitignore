@@ -64,7 +64,7 @@ env/
 .DS_Store
 
 # -- ours --
-cache/
+cache*/
 evaluation/scoreboard.csv
 evaluation/reports/
 external_data/

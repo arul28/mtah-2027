@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-from mtah import decode, dev, experiment, seq
+from mtah import decode, dev, experiment, seq, seq4
 from mtah.score import spell_f1_fast
 
 TAU_EVAL = (2.0, 3.0, 4.0)
@@ -110,7 +110,7 @@ def main(args):
     targets = {te: {g: dev.sticky(evald[g][1], evald[g][2], te) for g in gs if g not in dev.METRICA}
                for te in TAU_EVAL}
     print("loaded %d games t=%.0fs" % (len(gs), time.time() - t0), flush=True)
-    probs = {"lgb": {}, "gru": {}}
+    probs = {"lgb": {}, "gru": {}, "unet": {}}
     for g in gs:
         keys = [k for k in train if k[1] != g]
         Xs = [train[k][0] for k in keys]
@@ -121,6 +121,11 @@ def main(args):
                           evald[g][0], evald[g][3]) for k in range(args.gru)]
         if ps:
             probs["gru"][g] = np.mean(ps, 0)
+        if args.unet:
+            us = [seq4.predict(seq4.train(Xs, ys, epochs=args.epochs, seed=100 + k,
+                                          hidden=args.hidden),
+                               evald[g][0], evald[g][3]) for k in range(args.unet)]
+            probs["unet"][g] = np.mean(us, 0)
     print("trained t=%.0fs" % (time.time() - t0), flush=True)
     out = {}
     for name, p in probs.items():
@@ -131,6 +136,14 @@ def main(args):
         for w in (0.3, 0.5):
             p = {g: w * probs["lgb"][g] + (1 - w) * probs["gru"][g] for g in gs}
             out["ens%.1f" % w] = report(sweep(evald, p, targets), "ens lgb=%.1f" % w)
+    if probs["unet"] and probs["gru"]:
+        for w in (0.3, 0.5):
+            p = {g: w * probs["gru"][g] + (1 - w) * probs["unet"][g] for g in gs}
+            out["gu%.1f" % w] = report(sweep(evald, p, targets), "ens gru/unet %.1f" % w)
+        if probs["lgb"]:
+            p = {g: 0.2 * probs["lgb"][g] + 0.45 * probs["gru"][g] + 0.35 * probs["unet"][g]
+                 for g in gs}
+            out["ens3"] = report(sweep(evald, p, targets), "ens lgb .2 gru .45 unet .35")
     with open(os.path.join(dev.EXT, "result4_{}.json".format(args.tag)), "w") as fh:
         json.dump({k: [list(v[0]), v[1]] for k, v in out.items()}, fh)
     print("done t=%.0fs" % (time.time() - t0))
@@ -143,6 +156,7 @@ if __name__ == "__main__":
     ap.add_argument("--tau-train", type=float, default=0.0)
     ap.add_argument("--tau-mix", type=int, default=0)  # 1 = draw tau per (seed, game)
     ap.add_argument("--gru", type=int, default=1)
+    ap.add_argument("--unet", type=int, default=0)  # number of 1-D U-Net seeds (mtah/seq4.py)
     ap.add_argument("--lgb", type=int, default=1)
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--hidden", type=int, default=128)

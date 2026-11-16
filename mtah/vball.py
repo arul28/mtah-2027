@@ -169,6 +169,7 @@ def offset_ball(atd_m, pos, snapped):
 
 def main():
     t0 = time.time()
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     ball = atd.load()["ball"][:, :2].astype(np.float64) * np.array(match.PITCH)
     fr, xy = blobs_on_pitch()
     pos, snapped = track(ball, fr, xy)
