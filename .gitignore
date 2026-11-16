@@ -62,3 +62,10 @@ __pycache__/
 venv/
 env/
 .DS_Store
+
+# -- ours --
+cache/
+evaluation/scoreboard.csv
+evaluation/reports/
+external_data/
+submissions/
