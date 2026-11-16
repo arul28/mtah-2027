@@ -28,8 +28,10 @@ def graded_mask(n=N_FRAMES):
 # MTAH_BC_BALL=<path to merged_ball.npz>: fill tactical ball gaps with the broadcast ball, mapped
 # onto the tactical timeline by player-configuration matching (mtah-ext/scripts/align_broadcast.py)
 BC_BALL = os.environ.get("MTAH_BC_BALL")
-# MTAH_VBALL=1: use the video-corrected ball (mtah/vball.py) wherever the ATD has one
+# MTAH_VBALL=1: use the video-corrected ball (mtah/vball.py, or mtah/cball.py with
+# MTAH_VBALL_FILE=cball.npz)
 VBALL = os.environ.get("MTAH_VBALL") == "1"
+VBALL_FILE = os.environ.get("MTAH_VBALL_FILE", "vball.npz")
 
 
 def team_arrays():
@@ -38,7 +40,7 @@ def team_arrays():
     home, away = P[:, team == 0], P[:, team == 1]
     ball = d["ball"][:, :2].copy()
     if VBALL:
-        ball = np.load(os.path.join(ROOT, "cache", "vball.npz"))["ball"]
+        ball = np.load(os.path.join(ROOT, "cache", VBALL_FILE))["ball"]
     if BC_BALL:
         bc = np.load(BC_BALL)["ball_bc"]
         fill = np.isnan(ball[:, 0]) & ~np.isnan(bc[:, 0])

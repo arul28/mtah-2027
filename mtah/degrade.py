@@ -91,7 +91,7 @@ BALL_SHARP = os.environ.get("MTAH_BALL_SHARP") == "1"
 
 def sharp_stats():
     from mtah import match
-    z = np.load(os.path.join(os.path.dirname(STATS), "vball.npz"))
+    z = np.load(os.path.join(os.path.dirname(STATS), match.VBALL_FILE))
     keep = z["snapped"]
     g = match.graded_mask(len(keep))
     present = ~np.isnan(z["ball"][:, 0])

@@ -24,6 +24,7 @@ OUT = os.path.join(ROOT, "cache", "vball.npz")
 RADIUS_M = 3.0      # blobs further than this from the ATD ball are not candidates
 SIGMA_ATD = 1.0     # m: spread of the true ball around the ATD ball
 SIGMA_JUMP = 0.5    # m per frame: frame-to-frame motion beyond what a kick allows is penalised
+SIGMA_OFF = 0.25    # m per frame: how fast the blob-minus-tracked-ball offset may change
 NONE_COST = 2.0     # cost of saying "no blob is the ball" in a frame
 SWITCH_COST = 1.0   # cost of moving between "blob" and "none"
 MIN_RUN = 10        # blob runs shorter than this are not trusted
@@ -45,6 +46,7 @@ def blobs_on_pitch():
 
 
 def track(atd_m, fr, xy):
+    """Original first-order cost: penalise displacement from frame to frame."""
     T = len(atd_m)
     start = np.searchsorted(fr, np.arange(T + 1))
     out = atd_m.copy()
@@ -81,6 +83,60 @@ def track(atd_m, fr, xy):
         for t in range(len(seg) - 1, -1, -1):
             if s > 0:
                 out[seg[t]] = cands[t][s - 1]
+                snapped[seg[t]] = True
+            if t > 0:
+                s = int(back[t - 1][s])
+    return out, snapped
+
+
+def track2(atd_m, fr, xy, radius=None, sigma_off=None, none_cost=None, switch_cost=None):
+    """Video ball by Viterbi where the cost is the smoothness of the offset from the tracked ball.
+
+    The tracked ball is heavily smoothed, so the *offset* between it and the real ball in the video
+    is a slowly varying quantity even while the ball is moving fast. Penalising changes in that
+    offset (rather than the ball's displacement, which grows with speed) stops the tracker from
+    preferring "no blob" on fast passes.
+    """
+    radius = RADIUS_M if radius is None else radius
+    sigma_off = SIGMA_OFF if sigma_off is None else sigma_off
+    none_cost = NONE_COST if none_cost is None else none_cost
+    switch_cost = SWITCH_COST if switch_cost is None else switch_cost
+    T = len(atd_m)
+    start = np.searchsorted(fr, np.arange(T + 1))
+    out = atd_m.copy()
+    snapped = np.zeros(T, bool)
+    present = ~np.isnan(atd_m[:, 0])
+    idx = np.flatnonzero(present)
+    for seg in np.split(idx, np.flatnonzero(np.diff(idx) > 1) + 1):
+        if len(seg) < 3:
+            continue
+        cands, costs, offs = [], [], []
+        for f in seg:
+            c = xy[start[f]:start[f + 1]]
+            d = np.hypot(c[:, 0] - atd_m[f, 0], c[:, 1] - atd_m[f, 1])
+            c = c[d < radius]
+            d = d[d < radius]
+            cands.append(c)
+            offs.append(c - atd_m[f])
+            costs.append(np.r_[none_cost, 0.5 * (d / SIGMA_ATD) ** 2])
+        acc = costs[0]
+        back = []
+        for t in range(1, len(seg)):
+            p, c = offs[t - 1], offs[t]
+            n0, n1 = len(p) + 1, len(c) + 1
+            tr = np.full((n0, n1), switch_cost)
+            tr[0, 0] = 0.0
+            if len(p) and len(c):
+                j = np.hypot(c[None, :, 0] - p[:, None, 0], c[None, :, 1] - p[:, None, 1])
+                tr[1:, 1:] = np.minimum(0.5 * (j / sigma_off) ** 2, 12.0)
+            tot = acc[:, None] + tr
+            b = tot.argmin(0)
+            back.append(b)
+            acc = tot[b, np.arange(n1)] + costs[t]
+        s = int(acc.argmin())
+        for t in range(len(seg) - 1, -1, -1):
+            if s > 0:
+                out[seg[t]] = atd_m[seg[t]] + offs[t][s - 1]
                 snapped[seg[t]] = True
             if t > 0:
                 s = int(back[t - 1][s])
