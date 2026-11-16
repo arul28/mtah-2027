@@ -303,4 +303,34 @@ is compared with another's.
   Paired against f6 at fixed decoders: +0.0010 at (10,40,0.5) with 7/10 games up, -0.0017 at
   (15,40,0.5) and -0.0018 at (15,80,0.5) with 2-3/10 up. Inside noise; not adopted. The code stays
   behind `VERSION >= "f7"` so the experiment can be rerun.
+- **1-D U-Net in the blend (adopted).** `mtah/seq4.py`: a dilated 1-D U-Net (three pooled
+  levels, dilations 1/2/4/8, skip connections, 1.1M parameters) over the same features, scaler,
+  chunking and 800 optimizer steps as the GRU, so it is a second sequence-model family rather than
+  a different protocol. Alone it is slightly worse than the GRU (v26unet: both 0.7386 vs 0.7445,
+  but Metrica 0.7878 vs 0.7824), and 50/50 gru/unet is worse than the shipped blend - the gain only
+  appears with the LightGBM member in it.
+  - Paired at fixed decoders against the shipped 0.3 lgb / 0.7 gru, weights lgb 0.25 / gru 0.50 /
+    unet 0.25: (10,40,0.5) 0.7458 -> 0.7505 (+0.0047, 7/10 games up, Metrica +0.007);
+    (15,40,0.5) 0.7495 -> 0.7551 (+0.0056, 8/10 up, Metrica +0.009); (15,80,0.5) 0.7502 -> 0.7526
+    (+0.0024, 7/10 up, Metrica +0.004). Positive at every decoder and on every Metrica game, and
+    0.25/0.45/0.30 and 0.20/0.45/0.35 weightings behave the same way, so the choice of weights is
+    not what makes it work. Adopted with 4 U-Net seeds and 6 GRU seeds in the final build.
+  - Build `submissions/f6unet_gpu_FINAL.csv`: GPU twice, byte-identical, sha256 `7d16f273b7f7b6da`.
+    Valid, 293 possessions, 98.8% frame agreement with the previous best. Public-window wiring
+    check: spellF1 0.629, macroF1 0.835 (the previous best was 0.629 / 0.832), so nothing about the
+    wiring changed - as a selection signal it is inside the window's noise, as always.
+- **Decoder choice re-checked per family.** Picking (c_turn, c_dead, bias_d) leave-one-out inside
+  the Metrica family gives 0.7883 against 0.7999 for the shipped (10, 40, 0.5): the shipped costs
+  are the best family-constant choice for our vendor (0.7999 vs 0.8010 for the argmax, i.e. within
+  noise). The DFL family prefers c_turn 25 (+0.019), which is the known DFL/Metrica difference and
+  not transferable. D share error on the Metrica games is +0.005, +0.101, +0.035 - we over-predict
+  dead ball on the two event-labelled games, and no decoder setting fixes it (the per-game best
+  decoder moves G2 from +0.101 to +0.099), so it is a model-prior issue, not a decoding one.
+- **One-command rebuild, verified from nothing.** Moved `cache/` aside so the tree held only the
+  provided data, then ran `python -m mtah.final` twice on the GPU. It rebuilt the ATD cache, the
+  3.45M video blobs, the video ball, the 297-column match features and all seven models from
+  scratch (13 min), and both files are byte-identical to each other and to the shipped build,
+  `sha256 a67bcbe837b1abfc`. This caught a real bug: `blobs`, `vball` and `features` wrote into
+  `cache/` without creating it, which worked only because development had left the directory
+  behind. Fixed, and `.gitignore` now ignores `cache*/` so a backup copy can never be committed.
 

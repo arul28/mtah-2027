@@ -33,8 +33,9 @@ CONFIG = {
     "gru_models": 6,
     "gru_epochs": 20,
     "gru_hidden": 128,
-    "unet_models": 0,             # 1-D U-Net seeds added to the blend (mtah/seq4.py)
-    "lgb_weight": 0.3,
+    "unet_models": 4,             # 1-D U-Net seeds added to the blend (mtah/seq4.py)
+    "lgb_weight": 0.25,
+    "unet_weight": 0.25,          # the GRU takes the rest
     "c_turn": 10.0,
     "c_dead": 40.0,
     "bias_d": 0.5,
@@ -111,6 +112,13 @@ def probabilities(cfg):
     p_gru = np.mean(grus, 0)
     w = cfg["lgb_weight"]
     proba = w * p_lgb + (1 - w) * p_gru
+    if cfg["unet_models"]:
+        from mtah import seq4
+        unets = [seq4.predict(seq4.train(Xs, ys, epochs=cfg["gru_epochs"], seed=100 + k,
+                                         hidden=cfg["gru_hidden"]), Xm, runs)
+                 for k in range(cfg["unet_models"])]
+        wu = cfg["unet_weight"]
+        proba = (1 - w - wu) * p_gru + wu * np.mean(unets, 0) + w * p_lgb
     return rules.apply_prekickoff_dead(proba, match.HALVES), runs
 
 

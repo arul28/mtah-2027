@@ -12,8 +12,9 @@ standing still, kicks and receptions read off the ball's speed and who made them
 the ball travels relative to each side's attack, and who would get to the ball first under its
 current velocity) plus Smart Tagging evidence. The ATD ball is
 first **corrected with the tactical video**: it is far smoother than a real ball, so it is snapped to
-white ball-sized blobs detected in every video frame (section 4b). A **per-frame classifier** (LightGBM) and a
-**bidirectional GRU** over the sequence produce H/A/D probabilities, which are averaged. A
+white ball-sized blobs detected in every video frame (section 4b). A **per-frame classifier** (LightGBM) and two
+**sequence models** - a bidirectional GRU and a dilated 1-D U-Net over the same features, different
+inductive biases - produce H/A/D probabilities, which are blended 0.25 / 0.50 / 0.25. A
 **Viterbi decoder** with a cost per change of state then turns them into possessions. The decoder
 is what keeps the possession count realistic, which the ranking metric rewards. The models are
 trained only on **other games** (7 DFL Bundesliga matches and Metrica's 3 open sample games).
@@ -102,8 +103,9 @@ on a dev ball degraded to look like the match, all at the same decoder:
 | test-time ball | DFL | Metrica | both |
 |---|---|---|---|
 | smoothed like the raw ATD (what f5 faces on the match) | 0.708 | 0.734 | 0.721 |
-| smoothed, with video-corrected runs, f5 features (**previous final**) | 0.706 | 0.788 | 0.747 |
-| smoothed, with video-corrected runs, f6 features (**final**) | 0.707 | 0.794 | 0.750 |
+| smoothed, with video-corrected runs, f5 features | 0.706 | 0.788 | 0.747 |
+| smoothed, with video-corrected runs, f6 features | 0.707 | 0.794 | 0.750 |
+| + 1-D U-Net in the blend, f6 (**final**, at the shipped decoder) | 0.701 | **0.800** | **0.751** |
 
 The video gives +0.025 overall, and every Metrica game gains +0.04 to +0.07. The f6 features
 (who gets to the ball first, time in flight, ball acceleration, longer kick/reception balance)
@@ -114,8 +116,12 @@ improve at each one, and the Metrica half is up in three of four.
 Tried and dropped: a per-player set encoder (0.714), a 12.5 fps GRU (no gain), sticky training
 labels (worse), minimum-duration / asymmetric decoders (no gain), self-training on the
 held-out game (noise), SkillCorner's 20 A-League games as extra training data (0.751), pitch
-symmetry augmentation with test-time averaging (0.768, within noise), and training on the
-match-like degraded ball (no gain over training on the clean ball).
+symmetry augmentation with test-time averaging (0.768, within noise), training on the
+match-like degraded ball (no gain over training on the clean ball), a mean-vs-argmax decoder
+audit over the whole grid (the shipped costs remain the best family-constant choice for the
+Metrica games), and a global video-ball tracker with a learned per-candidate classifier (it
+raises ball coverage by 40% but the added positions disagree with the broadcast camera's ball by
+2 m, so it stays out of the submission).
 
 ## 6. Limitations
 
