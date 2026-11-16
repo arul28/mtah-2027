@@ -12,7 +12,7 @@ per period so the home team always attacks +x.
 import numpy as np
 
 FPS = 25
-VERSION = "f5"  # bump when features change; it is part of every feature cache filename
+VERSION = "f6"  # bump when features change; it is part of every feature cache filename
 
 
 def to_metres(xy, pitch):
@@ -132,6 +132,43 @@ def kick_features(Bm, h_dmin, a_dmin, present):
         out["last_kick_dir"] = np.where(np.maximum.accumulate(kick1),
                                         np.sign(np.nan_to_num(ahead))[idx], 0.0).astype(np.float32)
     return out
+
+
+def intercept_features(Bm, P, present):
+    """Who gets to the ball first: closest approach under the ball's current velocity.
+
+    For each player, relative position r = p - b and relative velocity u = v_p - v_b; the closest
+    approach happens at t* = -<r,u>/|u|^2 with distance |r + u t*|. Aggregated per team: the
+    minimum approach distance and its time, plus how many players sit on the ball's path.
+    """
+    T = len(Bm)
+    vb = np.zeros((T, 2))
+    vb[3:-3] = (Bm[6:] - Bm[:-6]) / 6.0 * np.array([1.0, 1.0])
+    vb[~present] = 0.0
+    vp = np.zeros_like(P)
+    vp[2:] = (P[2:] - P[:-2]) / 2.0
+    r = P - Bm[:, None, :]
+    u = vp - vb[:, None, :]
+    uu = (u ** 2).sum(-1)
+    ru = (r * u).sum(-1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        t = np.clip(-ru / np.maximum(uu, 1e-9), 0.0, 50.0)
+    close = np.hypot(*(r + u * t[..., None]).transpose(2, 0, 1))
+    close = np.where(np.isnan(r[..., 0]) | ~present[:, None], np.inf, close)
+    t = np.where(np.isinf(close), np.inf, t)
+    k = np.argmin(close, 1)
+    dmin = np.take_along_axis(close, k[:, None], 1)[:, 0]
+    tmin = np.take_along_axis(t, k[:, None], 1)[:, 0]
+    sp = np.hypot(vb[:, 0], vb[:, 1])
+    moving = present & (sp > 6.0 / FPS)
+    dirx = np.where(moving, vb[:, 0] / np.maximum(sp, 1e-9), 0.0)
+    diry = np.where(moving, vb[:, 1] / np.maximum(sp, 1e-9), 0.0)
+    fwd = r[..., 0] * dirx[:, None] + r[..., 1] * diry[:, None]
+    lat = np.abs(r[..., 0] * diry[:, None] - r[..., 1] * dirx[:, None])
+    corridor = np.sum((fwd > 1.0) & (fwd < 20.0) & (lat < 4.0) & ~np.isnan(r[..., 0]), 1)
+    return {"cap": np.where(present, dmin, np.nan),
+            "cap_t": np.where(present, np.minimum(tmin, 60.0), np.nan),
+            "corridor": np.where(present, corridor, np.nan).astype(np.float32)}
 
 
 def frame_features(home, away, home_spd, away_spd, ball, period, pitch):
@@ -257,6 +294,37 @@ def frame_features(home, away, home_spd, away_spd, ball, period, pitch):
 
     if VERSION >= "f4":
         f.update(kick_features(Bm, f["h_dmin"], f["a_dmin"], present))
+
+    if VERSION >= "f6":
+        # who is first to the ball: closest approach under the ball's current velocity
+        ih = intercept_features(Bm, H, present)
+        ia = intercept_features(Bm, A, present)
+        f["h_cap"] = ih["cap"]
+        f["a_cap"] = ia["cap"]
+        f["cap_diff"] = np.where(present, np.minimum(ia["cap"], 80) - np.minimum(ih["cap"], 80),
+                                 np.nan)
+        f["h_cap_t"] = ih["cap_t"]
+        f["a_cap_t"] = ia["cap_t"]
+        f["cap_t_diff"] = np.where(present, np.minimum(ia["cap_t"], 60) - np.minimum(
+            ih["cap_t"], 60), np.nan)
+        f["h_corridor"] = ih["corridor"]
+        f["a_corridor"] = ia["corridor"]
+        f["corridor_diff"] = f["h_corridor"] - f["a_corridor"]
+        # ball in flight: fast and away from every player
+        flight = present & (f["ball_v"] > 8.0) & (np.fmin(f["h_dmin"], f["a_dmin"]) > 2.5)
+        f["flight"] = flight.astype(np.float32)
+        f["since_flight"] = frames_since(flight)
+        # acceleration of the ball (kicks show up here even when the kick detector misses)
+        acc = np.full(T, np.nan, np.float32)
+        acc[1:-1] = np.hypot(*(np.diff(Bm, 2, axis=0)).T)
+        f["ball_acc"] = rolling_mean(acc, 2)
+        f["ball_acc12"] = rolling_mean(acc, 12)
+        # a kick that has not been answered by a reception yet: the pass is in the air
+        out_k = f["last_kick"]
+        f["kick_unanswered"] = (f["since_kick"] < f["since_recv"]).astype(np.float32) * out_k
+        for half in (250, 500):
+            f["last_kick_l%d" % half] = rolling_mean(f["last_kick"], half, "past")
+            f["last_recv_l%d" % half] = rolling_mean(f["last_recv"], half, "past")
 
     f["dmin_diff"] = f["a_dmin"] - f["h_dmin"]
     f["dmin_last_diff"] = f["a_dmin_last"] - f["h_dmin_last"]

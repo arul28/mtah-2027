@@ -8,8 +8,9 @@
 Each frame is described by **identity-free** features, because the 46 ATD slots fragment and
 swap. These are statistics over each team's visible players (nearest distances to the ball and
 to its last known position, who last had the ball close, team shape, block speed, players
-standing still, kicks and receptions read off the ball's speed and who made them, and which way
-the ball travels relative to each side's attack) plus Smart Tagging evidence. The ATD ball is
+standing still, kicks and receptions read off the ball's speed and who made them, which way
+the ball travels relative to each side's attack, and who would get to the ball first under its
+current velocity) plus Smart Tagging evidence. The ATD ball is
 first **corrected with the tactical video**: it is far smoother than a real ball, so it is snapped to
 white ball-sized blobs detected in every video frame (section 4b). A **per-frame classifier** (LightGBM) and a
 **bidirectional GRU** over the sequence produce H/A/D probabilities, which are averaged. A
@@ -101,9 +102,14 @@ on a dev ball degraded to look like the match, all at the same decoder:
 | test-time ball | DFL | Metrica | both |
 |---|---|---|---|
 | smoothed like the raw ATD (what f5 faces on the match) | 0.708 | 0.734 | 0.721 |
-| smoothed, with video-corrected runs (**final, `vball`**) | 0.706 | **0.788** | **0.747** |
+| smoothed, with video-corrected runs, f5 features (**previous final**) | 0.706 | 0.788 | 0.747 |
+| smoothed, with video-corrected runs, f6 features (**final**) | 0.707 | 0.794 | 0.750 |
 
-The video gives +0.025 overall, and every Metrica game gains +0.04 to +0.07.
+The video gives +0.025 overall, and every Metrica game gains +0.04 to +0.07. The f6 features
+(who gets to the ball first, time in flight, ball acceleration, longer kick/reception balance)
+add a smaller and much better measured amount: paired against f5 at five fixed decoders, both
+moves by +0.0004, +0.0028, +0.0051, +0.0095 and +0.0034 (mean +0.004), 6 to 9 of the 10 games
+improve at each one, and the Metrica half is up in three of four.
 
 Tried and dropped: a per-player set encoder (0.714), a 12.5 fps GRU (no gain), sticky training
 labels (worse), minimum-duration / asymmetric decoders (no gain), self-training on the
@@ -115,7 +121,12 @@ match-like degraded ball (no gain over training on the clean ball).
 
 - Possessions shorter than ~2 s are mostly missed.
 - The video ball is trusted on only about half of the frames where the ATD ball is present;
-  elsewhere the model still sees the smoothed ATD ball.
+  elsewhere the model still sees the smoothed ATD ball. A global tracker over all video blob
+  candidates (a learned per-candidate ball classifier plus a beam search, `mtah/bpatch.py` and
+  `mtah/cball.py`) raises that coverage from 0.29 to 0.41 of graded frames and fixes the tracked
+  ball's lag on fast passes, but the frames it adds disagree with the independent broadcast
+  camera's ball by 2.0 m (0.8 m for the tracked ball on its own frames), so it was not adopted.
+  Getting the rest needs a full-frame heatmap detector, not a better candidate selector.
 - The dev games' tracking is cleaner than ours even after degradation; the shift is checked
   (feature medians, model confidence) but not eliminated.
 

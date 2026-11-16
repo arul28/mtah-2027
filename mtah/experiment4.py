@@ -31,6 +31,12 @@ def train_label(g, y, period, tau):
     return y if g in dev.METRICA else dev.sticky(y, period, tau)
 
 
+def short(*key):
+    """Stable hash of a (string, int) tuple -> RNG seed, for reproducible per-copy randomness."""
+    import hashlib
+    return int(hashlib.sha256(":".join(map(str, key)).encode()).hexdigest()[:8], 16)
+
+
 def score_all(evald, proba, targets, c_turn, c_dead, bd):
     dfl, met = [], []
     for g in evald:
@@ -69,11 +75,19 @@ def main(args):
     gs = games()
     evald = {}
     degrade.BALL_SMOOTH, degrade.BALL_SHARP = args.eval_smooth, bool(args.eval_sharp)
+    if args.eval_present:
+        # sensitivity run: the held-out ball is trusted more often than the tracked ball is, which
+        # is what a better video ball would look like at test time
+        degrade.PRESENT_ALIVE, degrade.PRESENT_DEAD = (float(v) for v in
+                                                       args.eval_present.split(","))
+        os.environ["MTAH_PRESENT"] = args.eval_present
     for g in gs:
         _, X, y, period = dev.load_match(g, seed=0)
         if args.tags:
             X = np.concatenate([X, dev.tag_block(y, period, 0)[1]], 1)
         evald[g] = (X, y, period, dev.runs_of(period))
+    if args.eval_present:
+        os.environ.pop("MTAH_PRESENT", None)
     train = {}
     degrade.BALL_SMOOTH, degrade.BALL_SHARP = args.train_smooth, bool(args.train_sharp)
     for s in args.train_seeds:
@@ -81,7 +95,11 @@ def main(args):
             n, X, y, p = dev.load_match(g, seed=s)
             if args.tags:
                 X = np.concatenate([X, dev.tag_block(y, p, 100 + s)[1]], 1)
-            train[(s, g)] = (X, train_label(g, y, p, args.tau_train))
+            tau = args.tau_train
+            if args.tau_mix:
+                tau = float(np.random.default_rng(short("taumix", s, g)).choice([0.0, 1.0, 2.0,
+                                                                                3.0, 4.0]))
+            train[(s, g)] = (X, train_label(g, y, p, tau))
     # extra training-only games (never held out, never scored)
     for g in (dev.skillcorner() if args.skillcorner else []):
         n, X, y, p = dev.load_match(g, seed=0)
@@ -122,6 +140,7 @@ if __name__ == "__main__":
     ap.add_argument("--tag", required=True)
     ap.add_argument("--train-seeds", type=int, nargs="+", default=[0])
     ap.add_argument("--tau-train", type=float, default=0.0)
+    ap.add_argument("--tau-mix", type=int, default=0)  # 1 = draw tau per (seed, game)
     ap.add_argument("--gru", type=int, default=1)
     ap.add_argument("--lgb", type=int, default=1)
     ap.add_argument("--epochs", type=int, default=20)
@@ -138,5 +157,6 @@ if __name__ == "__main__":
     ap.add_argument("--train-smooth", type=float, default=0.0)
     # 1 = the video-corrected mix of sharp and smoothed ball (degrade.BALL_SHARP)
     ap.add_argument("--eval-sharp", type=int, default=0)
+    ap.add_argument("--eval-present", default="")  # e.g. 0.95,0.35: a more complete held-out ball
     ap.add_argument("--train-sharp", type=int, default=0)
     main(ap.parse_args())

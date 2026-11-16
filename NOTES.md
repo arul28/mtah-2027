@@ -240,3 +240,59 @@ submission, train on CPU or enable deterministic algorithms, and make LightGBM d
 - Public-window wiring check: spellF1 0.606 vs 0.632 for f5 (macroF1 0.837 vs 0.845), 18 predicted
   possessions vs 14. About one possession of 17 in a 5-minute window, not a selection signal by the
   rules. Decision stays with dev.
+
+## 2026-11-16: f6 features, the global video ball, and a decoder audit
+
+All dev numbers below are with `--eval-smooth 6 --eval-sharp 1` (the match-like ball) and leave-one-
+game-out over the 10 dev games. Every comparison is at a FIXED decoder; no run's own best grid point
+is compared with another's.
+
+- **f6 = intercept + flight features** (`features.intercept_features`, VERSION f6). New columns:
+  who gets to the ball first under its current velocity (closest-approach distance and time per
+  team, their differences), how many players of each team sit in a 4 m corridor along the ball's
+  path, an explicit "in flight" flag (ball fast and >2.5 m from every player), time since flight,
+  ball acceleration at 2 and 12 frames, "kick not answered by a reception", and last kick/recv
+  balance over 10 s and 20 s. 288 columns from 270.
+  - `v26f6` (same training as v25d: clean dev ball, hybrid eval): LGB 0.7199, GRU 0.7445,
+    ens 0.3 both 0.7502 at its own best point.
+  - Paired against v25d at fixed decoders (ens 0.3/0.7), both: (10,40,0.5) +0.0004 6/10 up;
+    (15,40,0.5) +0.0028 7/10; (15,80,0.5) +0.0051 9/10; (25,40,0.5) +0.0095 9/10;
+    (15,40,0.0) +0.0034 6/10. Mean +0.0042, positive at every decoder, Metrica up in 3 of 4.
+    Small but consistent, so f6 is adopted.
+- **Video ball, second-order confirmation**: `vball.track2` (cost on the change of the offset from
+  the tracked ball instead of on displacement) lifts trusted coverage from 0.479 to 0.524 of
+  tracked-ball frames, with the same acceleration statistics (acc99 0.72 vs 0.73) but a slightly
+  lower kicker agreement (0.811 vs 0.825). Not adopted: the gain is inside the ball work's total
+  headroom and it would change the dev degradation without a way to validate it.
+- **Global video ball** (`mtah/cball.py` + `mtah/bpatch.py`, a 163k-parameter patch classifier on
+  the white-blob candidates, MIT-free reimplementation of the WASB/TrackNet idea):
+  - The classifier trains on the *trusted* frames only (48,044 positives, 787,990 negatives, public
+    window excluded) and validates at AUC 0.985, top-1 0.954 among candidates within 3 m of the
+    tracked ball. 72% of graded frames have some candidate scoring >0.5.
+  - A beam search over all candidates (constant-velocity cost, flat re-acquisition cost) then finds
+    the ball where the tracked ball is wrong: 55% of graded frames get a detection, and on frames
+    where the anchored tracker was trusted it agrees within 0.5 m 93% of the time.
+  - Coverage after merging with the tracked ball: 0.41 of graded frames trusted (vs 0.29), sure.
+    But the frames it adds are weak: on 23k newly covered frames the median disagreement with the
+    *broadcast* camera's ball is 2.0 m, against 0.77 m for the tracked ball on its own frames.
+    Kicker agreement 0.80 vs 0.825, and the broadcast check is worse on slow balls (1.10 vs 0.77)
+    while much better on fast ones (1.03 vs 1.86, i.e. it does fix the ATD's lag).
+  - Not adopted for the submission. Kept in the tree (`python -m mtah.cball`) because it is the
+    right base for a real detector (full-frame heatmap, WASB-style), which is what the remaining
+    coverage would need. Bounded value: the ball oracle is worth about +0.035 and +0.025 is already
+    banked.
+- **Decoder / post-processing audit** (on the saved OOFs, leave-one-game-out, 5 fixed decoder
+  families): nothing beats the shipped decoder.
+  - Possession counts at the shipped decoder: DFL predicted/GT ratio 1.07, Metrica 0.87 (our match
+    is Metrica-like, so we are under-segmenting by ~13% there).
+  - One turn cost per family, picked on the other games of the family: DFL wants c_turn 50
+    (+0.025 on DFL), Metrica wants 4-9 but the Metrica score is unchanged (0.7914 vs 0.7917). So the
+    count mismatch is not what limits spellF1.
+  - Activity-scaled turn costs, count-matched per-game costs, temperature calibration (+0.004 on
+    DFL, -0.004 on Metrica), D-scale, NNLS/logistic stacking, 4-member blending, rank averaging
+    (much worse), boundary snapping at 12/25/50/100 frames, merging short D gaps, dropping short
+    spells: all inside +-0.003 on Metrica or negative. Nothing adopted.
+- **Value of ball coverage, measured directly**: e4 with the held-out ball at presence 0.95/0.35
+  instead of the tracked ball's 0.85/0.17 (training unchanged), to see what more coverage would
+  buy. Result: see below.
+
