@@ -1,7 +1,7 @@
-# Frame-level possession from automatic tracking: technical document (draft)
+# Frame-level possession from automatic tracking: technical document
 
-> Draft, written during development. The numbers are from the external dev set, never from
-> the public 5 minutes, which were used only as a wiring check.
+> The numbers are from the external dev set (other games), never from the public 5 minutes, which
+> were used only as a plumbing check. `NOTES.md` holds the full experiment log behind every claim.
 
 ## 1. Approach in one paragraph
 
@@ -29,7 +29,7 @@ from this match's own gap-length distribution.
 | Smart Tagging | yes | attacking-phase team votes, set-piece windows, kick-off markers (as model inputs, and the pre-kick-off rule) |
 | homography | yes | projects video blobs to pitch metres for the video ball |
 | tactical video | yes | ball blobs in every frame; the ATD ball is snapped to them (`mtah/blobs.py`, `mtah/vball.py`) |
-| broadcast video / ATD | no | not synchronised; no expected gain for the effort |
+| broadcast video / ATD | only as a check | aligned to the tactical timeline frame-exactly by matching player configurations; used to measure the tactical ball's error, never as a model input |
 
 ## 3. Training and validation data (none from the provided game)
 
@@ -140,8 +140,11 @@ raises ball coverage by 40% but the added positions disagree with the broadcast 
   ball's lag on fast passes, but the frames it adds disagree with the independent broadcast
   camera's ball by 2.0 m (0.8 m for the tracked ball on its own frames), so it was not adopted.
   Getting the rest needs a full-frame heatmap detector, not a better candidate selector.
-- The dev games' tracking is cleaner than ours even after degradation; the shift is checked
-  (feature medians, model confidence) but not eliminated.
+- Both kinds of tracking on the match are *smoother* than the dev copies rather than noisier: the
+  ATD ball is about 10x and the ATD players about 3x smoother in acceleration than clean DFL, and
+  the dev degradation adds slow positional noise on top. That is the harmless direction (it is the
+  same experiment as training on a sharper ball, which was neutral), but the shift is measured, not
+  eliminated: per-feature medians differ by at most 0.76 standard deviations.
 
 ## 7. Reproduction
 
@@ -159,12 +162,12 @@ python evaluation/validate_submission.py submissions/<team_name>.csv
 
 The run is deterministic: fixed seeds, deterministic LightGBM, `torch.use_deterministic_algorithms`,
 and probabilities rounded to 1e-4 before decoding. Two builds on the same device produce
-bit-identical files — verified both after a warm start and from an empty `cache/`, where the whole
+bit-identical files - verified both after a warm start and from an empty `cache/`, where the whole
 chain (tracking cache, 3.45M video blobs, video ball, features, eleven model fits) is rebuilt from
-the provided data alone in about 40 minutes. The default device is CPU (a couple of hours; the U-Net is the slow part).
-`MTAH_DEVICE=cuda` takes about 25 minutes and is also bit-identical run to run, but GPU and CPU
-builds differ on ~2% of frames because the networks train to slightly different weights, so the
-submitted file names the device used.
+the provided data alone in about 40 minutes. The default device is CPU (a couple of hours; the
+U-Net is the slow part). `MTAH_DEVICE=cuda` takes about 30 minutes with a warm cache and is also
+bit-identical run to run, but GPU and CPU builds differ on ~2% of frames because the networks train
+to slightly different weights, so the submitted file names the device used.
 
 The submitted file is `submissions/f6unet_gpu_FINAL.csv`, sha256 prefix `7d16f273b7f7b6da`,
 built on an RTX 4090 with `MTAH_DEVICE=cuda`.
