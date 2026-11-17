@@ -356,6 +356,12 @@ is compared with another's.
   order as most of today's candidate gains, which is exactly why the rejections above are
   rejections, and why only the paired, within-run comparisons were trusted. `final.py` does set
   determinism and two full builds are byte-identical, so the shipped file is unaffected.
+- **The players are smoother on the match too, but it does not matter.** The ATD's player acceleration
+  is p50 0.001 / p99 0.010 m/frame^2 against 0.010/0.030 for a clean DFL game, i.e. the tracked
+  positions are smoothed with a roughly 3-frame Gaussian (the ball's is about 6). Speed distributions
+  are comparable (p99 6.6 vs 6.1 m/s), so it is smoothing, not a different game. The dev copies are
+  therefore *noisier* than the match, which is the harmless direction (and the same experiment as
+  training on a sharper ball, which was neutral). Not acted on.
 - **Output sanity**: the final file has 293 possessions over 60.2 alive minutes (4.87/min) with a
   median possession of 6.6 s. Metrica's own event-derived possessions run at 4.3-5.1/min with a
   median of 5.7-7.1 s, so the submitted segmentation sits inside the vendor's own distribution, not

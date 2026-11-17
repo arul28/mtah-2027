@@ -1,115 +1,32 @@
-# Submitting
+# Submission
 
-## The possession file
+**File:** `submissions/f6unet_gpu_FINAL.csv` — 199,319 rows, `frame,label`, labels `H` / `A` / `D` /
+`X`, validated with `evaluation/validate_submission.py`.
 
-A CSV with a header line and one row per video frame.
+**SHA-256 prefix:** `7d16f273b7f7b6da` (full digest
+`7d16f273b7f7b6dac0eea0968b7547ac4cce89964518f73b420be9b424385373`). Three independent builds on
+the same GPU stack — one of them from an empty `cache/` — produced this exact file.
+
+**Regenerate:**
 
 ```
-frame,label
-0,X
-1,X
-...
-11185,A
-11186,A
-...
-199318,X
+pip install -r requirements.txt -r requirements-mtah.txt
+export MTAH_DATA_DIR=/path/to/match/bundle      # the provided data, unchanged
+export MTAH_EXT_DIR=/path/to/external_data      # optional
+python external/fetch_external.py && python external/convert_dfl.py && python external/convert_metrica.py
+MTAH_DEVICE=cuda MTAH_TEAM=<team_name> python -m mtah.final
 ```
 
-| requirement | why it is strict |
-|---|---|
-| header is exactly `frame,label` | case and surrounding whitespace are tolerated; anything else is not |
-| exactly **199,319** data rows | one per frame of the tactical video |
-| `frame` is `0 … 199318`, in order | redundant with row order **on purpose** — it turns an off-by-one into a hard error instead of a score that is quietly wrong by one frame everywhere |
-| `label` is one of `H` `A` `D` `X` | stripped and upper-cased before checking, so `h` and ` H ` are fine |
-| no blank cells | an empty field is a mistake and is rejected as one. **Write `X` to abstain** |
+The first run scans the tactical video for ball candidates (about 10 minutes on 20 cores); the whole
+build takes about 13 minutes from an empty cache on an RTX 4090, and about two hours on CPU. See
+`TECHNICAL.md` for the method, `NOTES.md` for every experiment and its dev score, and
+`research/` for the literature survey behind the video work.
 
-UTF-8, `\n` or `\r\n`, no index column. Anything `pandas.read_csv` will parse is fine.
+**What it is, in one line:** identity-free per-team tracking features plus Smart Tagging evidence,
+with the tracked ball corrected by the tactical video, modelled by LightGBM + six bi-GRUs + four
+1-D U-Nets and decoded by a Viterbi pass with turnover and dead-ball costs.
 
-Frames where the **ground truth** is `X` are never scored — halftime, before kickoff, after the
-final whistle. On a graded frame an `X` counts as a miss under `macroF1`; under `spellF1`, which
-decides the ranking, the scorer fills it with your last label in that half before matching
-possessions, so it costs whatever repeating that label costs. See [EVALUATION.md](EVALUATION.md).
-
-### Check it before you send it
-
-```bash
-python evaluation/validate_submission.py my_submission.csv
-```
-
-This runs **exactly** the checks the official scorer runs. A file that fails them is skipped at
-scoring time with a one-line reason and scores nothing.
-
-
----
-
-## The three deliverables
-
-### 1. The possession file
-
-As above. This is what is scored and what decides the ranking.
-
-### 2. A public code repository
-
-Everything needed to go from the provided data to your submission file: source, pinned
-dependencies, installation and execution instructions, and the command that regenerates the file.
-
-The bar is that someone with the data bundle and your repository can reproduce your file. Not
-approximately — the same file.
-
-Make sure the match data is not in it. Your repository is public and the data is not
-redistributable.
-
-### 3. A technical document
-
-Short — a few pages is plenty. PDF or Markdown. It should cover:
-
-- **the approach** — what you built, and why that rather than something else
-- **which assets you used and how** — saying which ones you tried and *dropped* is just as useful
-- **training data** — every labelled dataset you used, its source, who labelled it and how much.
-  None of it may come from the provided game
-- **the possession rules you implemented** — where you drew the line on loose balls, challenges,
-  restarts
-- **limitations** — where it fails, and what you would fix with more time
-- **reproduction** — how to run it
-
----
-
-## How to submit
-
-One Google Form, three fields plus your team name:
-
-**Submission URL will be shared by email to all registered participants**
-
-| field | what |
-|---|---|
-| Team Name | the one stated by all team members in the registration form |
-| Possession file | upload your `.csv` (~1.9 MB) |
-| Public code repository URL | a public URL |
-| Short technical document | upload a `.pdf` or `.md` |
-
-**Deadline: November 17, 2026**
-
-Four practical things, because a form is less forgiving than a folder:
-
-- **Name the CSV and the technical document after your team — <team_name>.csv and <team_name>.pdf** The scorer
-  names each row of the board after the file, so this is what puts your name on it.
-- **You need a Google account** to upload. Worth discovering now rather than at the deadline.
-- **One response per team.** You may edit it; the last response before the deadline is the one
-  scored.
-- **There is no live leaderboard and no feedback.** The public 5-minute window and
-  `validate_submission.py` are the only signals you get before the deadline — so validate the exact
-  file you are about to upload, not one you built earlier.
-
----
-
-## Rules
-
-The full rules are in **[RULES.md](RULES.md)**. The two that define the task rather than the
-competition:
-
-- **The labels must be produced by an algorithm.** Annotating the data by hand is not a submission,
-  and no hand labels on the provided game may be used to train or validate a model. Hand labels on
-  other games are fine.
-- **You may not use the private ground truth** or anything derived from it, nor any human-produced
-  data about the game from any source. The 5 minutes published here are for checking your
-  pipeline, not for training or tuning.
+Dev estimate (leave-one-game-out over 7 DFL + 3 Metrica games, match-like ball): spellF1 0.751
+averaged over the two families, 0.800 on the three Metrica games, which are the same vendor as this
+match. Public 5-minute wiring check: spellF1 0.629, macro-F1 0.835 (the organisers' own baseline
+scores 0.2433 on the full match).
