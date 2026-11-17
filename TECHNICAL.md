@@ -129,7 +129,9 @@ The motion-blur-aware candidate filter is worth +0.0076 at (10,40,0.5) and +0.00
 against the same pipeline with the previous filter (7 and 8 of 10 games up, Metrica +0.0077 and
 +0.0043), on 30% more trusted ball frames and 2.3x as many detected kicks. Part of that dev gain is
 the simulation getting more faithful as the ball gets sharper, so the label-free numbers in section
-4b are the real evidence for it.
+4b are the real evidence for it. On the public 5-minute plumbing check it also moves the entry from
+0.6286 / 0.8350 to 0.6333 / 0.8510 (spellF1 / macro-F1), the first time on top of that board - a
+wiring check, not a selection signal.
 
 Tried and dropped: a per-player set encoder (0.714), a 12.5 fps GRU (no gain), sticky training
 labels (worse), minimum-duration / asymmetric decoders (no gain), self-training on the

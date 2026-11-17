@@ -399,6 +399,10 @@ is compared with another's.
     so a better ball also makes the *simulation* better, and part of the dev gain is that. What
     justifies the change is the label-free evidence above (twice the kicks at the same agreement,
     30% more coverage for the same accuracy against an independent camera), not the dev number.
+  - Plumbing check on the 5-minute window (not used for the decision, which was made on the
+    label-free evidence): spellF1 0.6333, macro-F1 0.8510, possession-share error 0.007, 19
+    predicted possessions against 17 - the first time this submission has topped that board
+    (previous: 0.6286 / 0.8350). Treat it as a wiring check, as always.
 - **Temporal stacker (rejected).** A small GRU over the three models' out-of-fold probabilities plus
   eight features, leave-one-game-out: 0.7469 vs 0.7505 at (10,40,0.5) and 0.7435 vs 0.7551 at
   (15,40,0.5), Metrica -0.014 and -0.026. The fixed 0.25/0.50/0.25 blend is not leaving anything on
