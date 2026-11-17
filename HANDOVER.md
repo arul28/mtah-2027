@@ -3,8 +3,11 @@
 **File to submit:** `submissions/rx_gpu_FINAL.csv` — 199,319 rows, `frame,label`, labels
 `H` / `A` / `D` / `X`, passes `python evaluation/validate_submission.py`.
 
-**SHA-256 prefix:** `ef07c39a9043831a`. Two independent GPU builds produced this exact file, and the
-whole chain was rebuilt from an empty `cache/` to confirm it (see the log in `NOTES.md`).
+**SHA-256 prefix:** `ef07c39a9043831a` (full digest
+`ef07c39a9043831a7a4c43813b8dc1e838553ac3714db91a4adbde35d4185535`). Four independent GPU builds
+produced this exact file, two of them after deleting `cache/` entirely and rebuilding the tracking
+cache, 10.5M video blob candidates, the video ball, the features and all eleven model fits from the
+provided data (39 + 30 minutes).
 
 **Regenerate in one command:**
 

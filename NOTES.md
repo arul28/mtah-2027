@@ -441,12 +441,13 @@ is compared with another's.
   decoder moves G2 from +0.101 to +0.099), so it is a model-prior issue, not a decoding one.
 - **One-command rebuild, verified from nothing, twice.** Moved `cache/` aside so the tree held only
   the provided data, then ran `python -m mtah.final` twice on the GPU: it rebuilt the ATD cache, the
-  3.45M video blobs, the video ball, the 288-column match features and all eleven model fits from
-  scratch (39 min + 30 min) and both files are byte-identical to each other and to the shipped
-  build, `sha256 7d16f273b7f7b6da`. That is five independent builds of the submitted file in total,
-  two of them from an empty cache. This caught a real bug: `blobs`, `vball` and `features` wrote into
-  `cache/` without creating it, which worked only because development had left the directory
-  behind. Fixed, and `.gitignore` now ignores `cache*/` so a backup copy can never be committed.
+  10.5M video blob candidates, the video ball, the 288-column match features and all eleven model
+  fits from scratch (39 min + 30 min) and both files are byte-identical to each other and to the
+  shipped `rx_gpu_FINAL.csv`, `sha256 ef07c39a9043831a`. Four independent builds of the submitted
+  file in total, two of them from an empty `cache/`. This caught a real bug: `blobs`, `vball` and
+  `features` wrote into `cache/` without creating it, which worked only because development had left
+  the directory behind. Fixed, and `.gitignore` now ignores `cache*/` so a backup copy can never be
+  committed.
 - **A mistake worth recording**: I overwrote the organisers' `SUBMISSION.md` with a handover note and
   restored it from git in the next commit; the note now lives in `HANDOVER.md`. `SUBMISSION.md`,
   `README.md`, `EVALUATION.md`, `games.py`, `starter/` and `evaluation/` are the organisers' files
