@@ -19,7 +19,7 @@ from mtah import atd, match
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "starter"))
-OUT = os.path.join(ROOT, "cache", "vball.npz")
+OUT = os.path.join(ROOT, "cache", "vball{}.npz".format("" if os.environ.get("MTAH_BLOBS", "relaxed") != "strict" else "_strict"))
 
 RADIUS_M = 3.0      # blobs further than this from the ATD ball are not candidates
 SIGMA_ATD = 1.0     # m: spread of the true ball around the ATD ball
@@ -35,7 +35,8 @@ MIN_RUN = 10        # blob runs shorter than this are not trusted
 def blobs_on_pitch():
     """(frame, x_m, y_m) of every blob, in the same metres frame as match.PITCH (origin at 0,0)."""
     import load_homography as lh
-    z = np.load(os.path.join(ROOT, "cache", "blobs_tactical.npz"))
+    from mtah import blobs
+    z = np.load(blobs.OUT)
     fr, px = z["frame"].astype(np.int64), z["blob"][:, :2].astype(np.float64)
     H, _, _ = lh.load()
     Hinv = np.linalg.inv(H)[fr]

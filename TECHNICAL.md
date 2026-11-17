@@ -68,15 +68,19 @@ from this match's own gap-length distribution.
   kick detector fires 0.5 times per alive minute on the match against 12-22 on dev games, so the
   kick features learned on dev were close to useless on the match.
 - **Detection** (`mtah/blobs.py`): every small, round, white blob inside the pitch (through the
-  homography) in all 199,319 frames, about 3.45M candidates. No learning and no labels.
+  homography) in all 199,319 frames, about 10.5M candidates (52.5 per frame). The filter also keeps
+  larger, elongated components, because a ball crossing the frame at 25 m/s smears into a 30-40 px
+  streak: without that, the fraction of frames with a candidate within 3 m of the independently
+  tracked broadcast ball drops from 0.79 to 0.57 above 15 m/s. No learning and no labels.
 - **Tracking** (`mtah/vball.py`): a Viterbi per run of present ATD ball chooses, frame by frame,
   a blob within 3 m of the ATD ball or "none". It costs distance to the ATD position, jumps and
   switches. The ATD ball is then moved by a continuously interpolated blob-minus-ATD offset, so
-  the corrected track never jumps. It is trusted on about 49% of the frames where the ball is
+  the corrected track never jumps. It is trusted on about 63% of the frames where the ball is
   present.
-- **Label-free checks.** Kicks per alive minute rise from 0.5 to 17.3, close to the dev games. The
-  kicking side agrees with the predicted possession 85.6% of the time, against 85-90% on clean
-  dev data. A visual check of the hardest cases found about 21 of 24 correct.
+- **Label-free checks.** Kicks per alive minute rise from 0.5 (raw ATD) to 33, at the top of the dev
+  range; the kicking side agrees with the predicted possession 82.6% of the time, the same as with
+  the previous candidate set while detecting 2.3x as many kicks. Agreement with the broadcast
+  camera's ball is unchanged (median 1.07 m, 73% within 2 m, on 30% more trusted frames).
 - **Testing it on dev games, which have no video.** The dev ball is degraded to look like the
   match. It is smoothed with a 6-frame Gaussian, a width calibrated on motion statistics, and
   clean-ball runs are restored with lengths drawn from the match's trusted and untrusted runs
@@ -105,7 +109,8 @@ on a dev ball degraded to look like the match, all at the same decoder:
 | smoothed like the raw ATD (what f5 faces on the match) | 0.708 | 0.734 | 0.721 |
 | smoothed, with video-corrected runs, f5 features | 0.706 | 0.788 | 0.747 |
 | smoothed, with video-corrected runs, f6 features | 0.707 | 0.794 | 0.750 |
-| + 1-D U-Net in the blend, f6 (**final**, at the shipped decoder) | 0.701 | **0.800** | **0.751** |
+| + 1-D U-Net in the blend | 0.701 | 0.800 | 0.751 |
+| + motion-blur-aware blob filter in the video ball (**final**) | **0.709** | **0.807** | **0.758** |
 
 The video gives +0.025 overall, and every Metrica game gains +0.04 to +0.07. The f6 features
 (who gets to the ball first, time in flight, ball acceleration, longer kick/reception balance)
@@ -119,6 +124,12 @@ and pairing the two without LightGBM is worse than the shipped blend. With Light
 +0.0056 at (15,40,0.5) and +0.0024 at (15,80,0.5), with the Metrica half up +0.007/+0.009/+0.004
 and 7-8 of the 10 games up. That is why it is in the final model even though its own score is
 lower.
+
+The motion-blur-aware candidate filter is worth +0.0076 at (10,40,0.5) and +0.0057 at (15,40,0.5)
+against the same pipeline with the previous filter (7 and 8 of 10 games up, Metrica +0.0077 and
++0.0043), on 30% more trusted ball frames and 2.3x as many detected kicks. Part of that dev gain is
+the simulation getting more faithful as the ball gets sharper, so the label-free numbers in section
+4b are the real evidence for it.
 
 Tried and dropped: a per-player set encoder (0.714), a 12.5 fps GRU (no gain), sticky training
 labels (worse), minimum-duration / asymmetric decoders (no gain), self-training on the

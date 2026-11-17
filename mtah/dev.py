@@ -137,6 +137,10 @@ def _suffix():
         out += "_p" + os.environ["MTAH_PRESENT"].replace(",", "_").replace(".", "")
     if degrade.BALL_SMOOTH > 0:
         out += "_bs%g" % degrade.BALL_SMOOTH + ("_sh" if degrade.BALL_SHARP else "")
+    if degrade.BALL_SHARP:
+        from mtah import match
+        if match.VBALL_FILE != "vball.npz":
+            out += "_" + match.VBALL_FILE.split(".")[0]   # the sharp runs come from this file
     return out
 
 

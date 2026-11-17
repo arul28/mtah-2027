@@ -1,12 +1,13 @@
 # Lab log
 
-**Current best submission: `submissions/f6unet_gpu_FINAL.csv`** (sha256 `7d16f273b7f7b6da`, two GPU
-builds byte-identical, valid, 293 possessions). Config: f6 features, video-corrected ball
-(`vball`), Smart Tagging, LightGBM 0.25 + six bi-GRUs 0.50 + four 1-D U-Nets 0.25, Viterbi
-(10, 40, 0.5), pre-kickoff dead rule. Dev (leave-one-game-out, match-like ball, shipped decoder):
-DFL 0.701, Metrica 0.800, both **0.751**. `python -m mtah.final` rebuilds it from the provided
-data alone (verified from an empty `cache/`). Previous best: `f6_gpu1.csv` (`a67bcbe837b1abfc`),
-before that `vball_gpu_FINAL.csv` (`4b8390df06c0cfed`).
+**Current best submission: `submissions/rx_gpu_FINAL.csv`** (sha256 `ef07c39a9043831a`, two GPU
+builds byte-identical, valid, 315 possessions). Config: f6 features, video-corrected ball with the
+motion-blur-aware blob filter (`vball`), Smart Tagging, LightGBM 0.25 + six bi-GRUs 0.50 + four
+1-D U-Nets 0.25, Viterbi (10, 40, 0.5), pre-kickoff dead rule. Dev (leave-one-game-out, match-like
+ball, shipped decoder): DFL 0.709, Metrica 0.807, both **0.758**; its own best grid point 0.7635
+(Metrica 0.819). `python -m mtah.final` rebuilds it from the provided data alone. Previous best:
+`f6unet_gpu_FINAL.csv` (`7d16f273b7f7b6da`), before that `f6_gpu1.csv` (`a67bcbe837b1abfc`) and
+`vball_gpu_FINAL.csv` (`4b8390df06c0cfed`).
 
 ## 2026-11-08: setup and first findings
 
@@ -367,6 +368,48 @@ is compared with another's.
   (15,40,0.5), 5/10 games up, Metrica +0.0045/-0.001. The final keeps 6/4 because more members can
   only reduce variance, but the dev numbers quoted everywhere are the 3/2 measurement, so they are a
   slightly conservative estimate of the shipped model.
+- **Motion-blur blindness in the blob filter (adopted).** The candidate filter kept components up to
+  22 px across with aspect ratio < 1.7. A ball crossing the frame at 25 m/s smears into a 30-40 px
+  streak, so exactly the fast balls were being thrown away. Measured without labels on 1,820 sampled
+  frames against the independent broadcast-camera ball - fraction of frames with a candidate within
+  3 m, by how fast that ball is moving:
+
+  | broadcast ball speed | strict filter | relaxed filter |
+  |---|---|---|
+  | 0-3 m/s | 0.635 | 0.796 |
+  | 3-8 | 0.840 | 0.945 |
+  | 8-15 | 0.839 | 0.927 |
+  | >15 | **0.569** | **0.794** |
+
+  On 12.3% of frames only the relaxed filter sees the ball at all, and there are zero frames the
+  other way round (the relaxed set is a superset). The filter now keeps components up to 70 px and
+  aspect ratio 5 with a looser fill ratio (52.5 candidates per frame instead of 17.3); the strict
+  set is still available as `MTAH_BLOBS=strict`.
+  - Video ball: trusted frames go from 0.485 to **0.629** of present graded frames, kicks detected
+    from 137 to **316** while kicker-vs-possession agreement holds at **0.826** (was 0.825) - the
+    extra kicks are real and consistent with possession, which is the f4 mechanism firing on twice
+    as many events. acc99 0.87 (dev range 0.44-0.94), and the agreement with the broadcast camera's
+    ball is unchanged overall (median 1.07 m vs 1.03 m, <2 m 0.732 vs 0.739; on trusted frames only
+    0.79 m vs 0.72 m, while covering 30% more frames).
+  - Dev, quoted against the same pipeline with the strict ball at fixed decoders: (10,40,0.5)
+    0.7505 -> **0.7581** (+0.0076, 7/10 games up, Metrica +0.0077); (15,40,0.5) 0.7551 -> **0.7608**
+    (+0.0057, 8/10 up, Metrica +0.0043). Its own sweep: ens 0.3 both 0.7635, DFL 0.7080, Metrica
+    0.8190.
+  - Caveat, stated plainly: the dev ball is a simulation built from the match's trusted run lengths,
+    so a better ball also makes the *simulation* better, and part of the dev gain is that. What
+    justifies the change is the label-free evidence above (twice the kicks at the same agreement,
+    30% more coverage for the same accuracy against an independent camera), not the dev number.
+- **Temporal stacker (rejected).** A small GRU over the three models' out-of-fold probabilities plus
+  eight features, leave-one-game-out: 0.7469 vs 0.7505 at (10,40,0.5) and 0.7435 vs 0.7551 at
+  (15,40,0.5), Metrica -0.014 and -0.026. The fixed 0.25/0.50/0.25 blend is not leaving anything on
+  the table.
+- **Research sweep (2026-11-17).** Two surveys in `research/`: ball detection in wide-angle football
+  video, and possession labelling practice. Useful context: public MTAH entries sit around 0.58-0.70
+  spellF1 on the 5-minute slice (ours 0.629); every decoder-side idea in the 2023-26 literature
+  (semi-Markov, CRF, MBR, boundary snapping, segment NNLS, pseudo-labels) is something we have
+  already measured and rejected. The one genuinely new suggestion - a **learned per-spell keep/merge
+  filter** over ~29 segment features, with a concurrent team's 2,471-candidate/740-keep filter as
+  precedent - is the best next step if there is another session.
 - **Output sanity**: the final file has 293 possessions over 60.2 alive minutes (4.87/min) with a
   median possession of 6.6 s. Metrica's own event-derived possessions run at 4.3-5.1/min with a
   median of 5.7-7.1 s, so the submitted segmentation sits inside the vendor's own distribution, not

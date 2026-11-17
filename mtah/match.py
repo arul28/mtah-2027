@@ -51,8 +51,9 @@ def team_arrays():
 
 def load_features(refresh=False):
     os.makedirs(os.path.join(ROOT, "cache"), exist_ok=True)
-    path = os.path.join(ROOT, "cache", "features_BAR-ATH_{}{}{}.npz".format(
-        features.VERSION, "_bc" if BC_BALL else "", "_vb" if VBALL else ""))
+    tag = "" if VBALL_FILE == "vball.npz" else "_" + VBALL_FILE.split(".")[0]
+    path = os.path.join(ROOT, "cache", "features_BAR-ATH_{}{}{}{}.npz".format(
+        features.VERSION, "_bc" if BC_BALL else "", "_vb" if VBALL else "", tag))
     if os.path.exists(path) and not refresh:
         z = np.load(path, allow_pickle=True)
         return list(z["names"]), z["X"]

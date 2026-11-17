@@ -1,12 +1,10 @@
 # Handover: what to submit, and where everything is
 
-**File to submit:** `submissions/f6unet_gpu_FINAL.csv` — 199,319 rows, `frame,label`, labels
+**File to submit:** `submissions/rx_gpu_FINAL.csv` — 199,319 rows, `frame,label`, labels
 `H` / `A` / `D` / `X`, passes `python evaluation/validate_submission.py`.
 
-**SHA-256 prefix:** `7d16f273b7f7b6da` (full digest
-`7d16f273b7f7b6dac0eea0968b7547ac4cce89964518f73b420be9b424385373`). Five independent builds on the
-same GPU stack produced exactly this file, two of them starting from an empty `cache/`, so any
-rebuild that disagrees means the environment changed, not the code.
+**SHA-256 prefix:** `ef07c39a9043831a`. Two independent GPU builds produced this exact file, and the
+whole chain was rebuilt from an empty `cache/` to confirm it (see the log in `NOTES.md`).
 
 **Regenerate in one command:**
 
@@ -25,10 +23,11 @@ an empty cache the build takes about 40 minutes on an RTX 4090 and about two hou
 cache warm it is about 30 minutes.
 
 **Dev estimate.** Leave-one-game-out over 7 DFL Bundesliga + 3 Metrica games, evaluated on a dev ball
-degraded to look like this match's video-corrected ball: spellF1 0.751 averaged over the two families
-(DFL 0.701, Metrica 0.800). Metrica is the vendor of this match, so the Metrica half is the
-trustworthy one. Public 5-minute wiring check (never used for any decision): spellF1 0.629,
-macro-F1 0.835, against the organisers' baseline of 0.2433 on the full match.
+degraded to look like this match's video-corrected ball: spellF1 0.758 averaged over the two families
+at the shipped decoder (DFL 0.709, Metrica 0.807), 0.7635 at its own best grid point (Metrica 0.819).
+Metrica is the vendor of this match, so the Metrica half is the trustworthy one. Public 5-minute
+wiring check (never used for any decision): spellF1 0.629, macro-F1 0.835, against the organisers'
+baseline of 0.2433 on the full match.
 
 **Where to read more:** `TECHNICAL.md` is the short technical document (method, assets, data,
 results, limitations, reproduction). `NOTES.md` is the lab log: every experiment with its dev score

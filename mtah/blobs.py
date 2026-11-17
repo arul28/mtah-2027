@@ -16,7 +16,12 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path[:0] = [ROOT, os.path.join(ROOT, "starter")]
-OUT = os.path.join(ROOT, "cache", "blobs_tactical.npz")
+# MTAH_BLOBS=relaxed also keeps larger, elongated components, which is what a ball smeared by motion
+# blur looks like: at >15 m/s the strict filter loses about a quarter of the frames where a white
+# component sits within 3 m of the independently broadcast-tracked ball. Separate cache file, so the
+# two candidate sets can be compared without rebuilding anything.
+RELAXED = os.environ.get("MTAH_BLOBS", "relaxed") != "strict"
+OUT = os.path.join(ROOT, "cache", "blobs_tactical{}.npz".format("" if RELAXED else "_strict"))
 WORKERS = 20
 N_FRAMES = 199319
 
@@ -27,8 +32,12 @@ def find(img):
     white = ((hsv[..., 1] < 70) & (hsv[..., 2] > 150)).astype(np.uint8)
     n, _, st, cen = cv2.connectedComponentsWithStats(white, connectivity=8)
     w, h, a = st[:, 2], st[:, 3], st[:, 4]
-    keep = (a >= 12) & (a <= 220) & (w >= 3) & (w <= 22) & (h >= 3) & (h <= 22)
-    keep &= (np.maximum(w, h) / np.minimum(w, h).clip(1) < 1.7) & (a / (w * h).clip(1) > 0.55)
+    if RELAXED:
+        keep = (a >= 12) & (a <= 900) & (w >= 3) & (w <= 70) & (h >= 3) & (h <= 70)
+        keep &= (np.maximum(w, h) / np.minimum(w, h).clip(1) < 5.0) & (a / (w * h).clip(1) > 0.35)
+    else:
+        keep = (a >= 12) & (a <= 220) & (w >= 3) & (w <= 22) & (h >= 3) & (h <= 22)
+        keep &= (np.maximum(w, h) / np.minimum(w, h).clip(1) < 1.7) & (a / (w * h).clip(1) > 0.55)
     keep[0] = False
     return np.c_[cen[keep], a[keep], w[keep], h[keep]].astype(np.float32)
 
