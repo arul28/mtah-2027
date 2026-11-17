@@ -362,6 +362,11 @@ is compared with another's.
   are comparable (p99 6.6 vs 6.1 m/s), so it is smoothing, not a different game. The dev copies are
   therefore *noisier* than the match, which is the harmless direction (and the same experiment as
   training on a sharper ball, which was neutral). Not acted on.
+- **Ensemble size beyond three members is saturated.** Re-running e4 with the shipped seed counts
+  (6 GRUs, 4 U-Nets instead of 3 and 2) moves the blend by +0.0019 at (10,40,0.5) and -0.0003 at
+  (15,40,0.5), 5/10 games up, Metrica +0.0045/-0.001. The final keeps 6/4 because more members can
+  only reduce variance, but the dev numbers quoted everywhere are the 3/2 measurement, so they are a
+  slightly conservative estimate of the shipped model.
 - **Output sanity**: the final file has 293 possessions over 60.2 alive minutes (4.87/min) with a
   median possession of 6.6 s. Metrica's own event-derived possessions run at 4.3-5.1/min with a
   median of 5.7-7.1 s, so the submitted segmentation sits inside the vendor's own distribution, not
