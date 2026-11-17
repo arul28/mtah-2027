@@ -375,6 +375,41 @@ def frame_features(home, away, home_spd, away_spd, ball, period, pitch):
             for half in (50, 125, 250):
                 f["{}_c{}".format(key, half)] = rolling_mean(f[key], half)
 
+    if VERSION >= "f9":
+        # the ball reversing direction is a turnover cue: a pass goes one way, the next goes back
+        vxb = np.full(T, np.nan, np.float32)
+        vyb = np.full(T, np.nan, np.float32)
+        vxb[4:-4] = (Bm[8:, 0] - Bm[:-8, 0]) * (FPS / 8.0)
+        vyb[4:-4] = (Bm[8:, 1] - Bm[:-8, 1]) * (FPS / 8.0)
+        fast = present & (np.hypot(vxb, vyb) > 2.0)
+        sx = np.where(fast, np.sign(vxb), 0.0)
+        sy = np.where(fast, np.sign(vyb), 0.0)
+        rev_x = np.zeros(T, bool)
+        rev_y = np.zeros(T, bool)
+        k = 6
+        prev_x = np.r_[np.zeros(k), sx[:-k]]
+        prev_y = np.r_[np.zeros(k), sy[:-k]]
+        rev_x[k:] = fast[k:] & (prev_x[k:] != 0) & (sx[k:] != 0) & (sx[k:] != prev_x[k:])
+        rev_y[k:] = fast[k:] & (prev_y[k:] != 0) & (sy[k:] != 0) & (sy[k:] != prev_y[k:])
+        rev = rev_x | rev_y
+        f["rev_x"] = rev_x.astype(np.float32)
+        f["rev_y"] = rev_y.astype(np.float32)
+        f["since_rev"] = np.minimum(frames_since(rev), 1500)
+        for half in (50, 125):
+            f["rev_c%d" % half] = rolling_mean(rev.astype(np.float32), half) * half
+        # how long the ball has held one x direction, and how sharply it is turning
+        hold = np.zeros(T, np.int32)
+        for t in range(1, T):
+            hold[t] = hold[t - 1] + 1 if (sx[t] == sx[t - 1] and sx[t] != 0) else 0
+        f["dir_hold"] = np.minimum(hold, 1500).astype(np.float32)
+        dot = vxb * np.r_[np.full(25, np.nan), vxb[:-25]] + np.r_[
+            np.full(25, np.nan), vyb[:-25]] * vyb
+        dot = dot / np.maximum(np.hypot(vxb, vyb) * np.hypot(
+            np.r_[np.full(25, np.nan), vxb[:-25]], np.r_[np.full(25, np.nan), vyb[:-25]]), 1e-6)
+        f["ball_turn"] = np.clip(dot, -1.0, 1.0)
+        for half in (12, 50):
+            f["ball_turn_c%d" % half] = rolling_mean(f["ball_turn"], half)
+
     f["dmin_diff"] = f["a_dmin"] - f["h_dmin"]
     f["dmin_last_diff"] = f["a_dmin_last"] - f["h_dmin_last"]
     f["cx_diff"] = f["h_cx"] - f["a_cx"]

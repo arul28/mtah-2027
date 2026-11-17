@@ -360,6 +360,15 @@ is compared with another's.
   median possession of 6.6 s. Metrica's own event-derived possessions run at 4.3-5.1/min with a
   median of 5.7-7.1 s, so the submitted segmentation sits inside the vendor's own distribution, not
   just inside the dev score.
+- **Ball reversal / turning features f9 (rejected).** Direction reversals along x and y, time since
+  the last reversal, how long one direction has been held, and the cosine between the ball's
+  velocity now and 25 frames ago: 0.7505 vs 0.7505 at (10,40,0.5) and 0.7505 vs 0.7551 at
+  (15,40,0.5), 3-5/10 games up. No gain. Feature engineering is at its ceiling on this data: of
+  f6/f7/f8/f9, only f6 added anything.
+- **Blend weights verified, not overfit.** A 20-point weight grid with leave-one-game-out
+  selection picks (0.30, 0.45, 0.25) on 8 of 10 folds and scores 0.7312 held out against 0.7308 for
+  the shipped (0.25, 0.50, 0.25): +0.0004, 5/10 up. The in-sample best is 0.7514 against 0.7505, so
+  there is nothing to gain from chasing the weights.
 - **Auxiliary change-point head on the U-Net (rejected).** With `aux=0.3`, an extra head predicts
   how many frames remain until the next label change (8 bins), which is the quantity the decoder
   actually needs but the frame loss never states. It is worse alone (0.7371 vs 0.7407) and in the
