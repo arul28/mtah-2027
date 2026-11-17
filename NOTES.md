@@ -260,7 +260,7 @@ is compared with another's.
   team, their differences), how many players of each team sit in a 4 m corridor along the ball's
   path, an explicit "in flight" flag (ball fast and >2.5 m from every player), time since flight,
   ball acceleration at 2 and 12 frames, "kick not answered by a reception", and last kick/recv
-  balance over 10 s and 20 s. 288 columns from 270.
+  balance over 10 s and 20 s. 288 columns from 270, 296 with the Smart Tagging block.
   - `v26f6` (same training as v25d: clean dev ball, hybrid eval): LGB 0.7199, GRU 0.7445,
     ens 0.3 both 0.7502 at its own best point.
   - Paired against v25d at fixed decoders (ens 0.3/0.7), both: (10,40,0.5) +0.0004 6/10 up;
@@ -280,7 +280,7 @@ is compared with another's.
   - A beam search over all candidates (constant-velocity cost, flat re-acquisition cost) then finds
     the ball where the tracked ball is wrong: 55% of graded frames get a detection, and on frames
     where the anchored tracker was trusted it agrees within 0.5 m 93% of the time.
-  - Coverage after merging with the tracked ball: 0.41 of graded frames trusted (vs 0.29), sure.
+  - Coverage after merging with the tracked ball: 0.41 of graded frames trusted against 0.29 today.
     But the frames it adds are weak: on 23k newly covered frames the median disagreement with the
     *broadcast* camera's ball is 2.0 m, against 0.77 m for the tracked ball on its own frames.
     Kicker agreement 0.80 vs 0.825, and the broadcast check is worse on slow balls (1.10 vs 0.77)
@@ -327,7 +327,7 @@ is compared with another's.
     Valid, 293 possessions, 98.8% frame agreement with the previous best. Public-window wiring
     check: spellF1 0.629, macroF1 0.835 (the previous best was 0.629 / 0.832), so nothing about the
     wiring changed - as a selection signal it is inside the window's noise, as always.
-- **τ-mixture training labels (rejected).** Drawing a stickiness τ ∈ {0,1,2,3,4} per (seed, game)
+- **tau-mixture training labels (rejected).** Drawing a stickiness tau in {0,1,2,3,4} per (seed, game)
   for the DFL training labels (`--tau-mix`): the DFL score jumps (3-way blend at (10,40,0.5) 0.7012
   -> 0.7298, all seven DFL games up by +0.009 to +0.058) and every Metrica game falls (0.7999 ->
   0.7650, -0.047/-0.028/-0.029). That is the DFL/Metrica label-definition difference showing up in
@@ -383,7 +383,7 @@ is compared with another's.
   decoder moves G2 from +0.101 to +0.099), so it is a model-prior issue, not a decoding one.
 - **One-command rebuild, verified from nothing.** Moved `cache/` aside so the tree held only the
   provided data, then ran `python -m mtah.final` twice on the GPU. It rebuilt the ATD cache, the
-  3.45M video blobs, the video ball, the 297-column match features and all seven models from
+  3.45M video blobs, the video ball, the 288-column match features and all eleven model fits from
   scratch (13 min), and both files are byte-identical to each other and to the shipped build,
   `sha256 a67bcbe837b1abfc`. This caught a real bug: `blobs`, `vball` and `features` wrote into
   `cache/` without creating it, which worked only because development had left the directory
