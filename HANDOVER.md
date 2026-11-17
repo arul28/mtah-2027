@@ -36,5 +36,5 @@ detection in wide-angle football video, and possession decoding) that the video 
 
 **State of the repository.** Everything adopted is committed on `main`; nothing has been pushed and
 the repository is not public. `cache/`, `submissions/`, `data/` and `external_data/` are gitignored,
-so no match data, no derived cache and no submission is in the history. `streamlit`-style leftovers
-do not exist: `python -m mtah.final` is the only entry point that matters.
+so no match data, no derived cache and no submission is in the history. `python -m mtah.final` is the
+only entry point that matters; the `starter/` helpers are the organisers' and are untouched.
