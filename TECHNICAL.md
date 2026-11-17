@@ -160,8 +160,8 @@ python evaluation/validate_submission.py submissions/<team_name>.csv
 The run is deterministic: fixed seeds, deterministic LightGBM, `torch.use_deterministic_algorithms`,
 and probabilities rounded to 1e-4 before decoding. Two builds on the same device produce
 bit-identical files — verified both after a warm start and from an empty `cache/`, where the whole
-chain (tracking cache, 3.45M video blobs, video ball, features, seven models) is rebuilt from the
-provided data alone. The default device is CPU (a couple of hours; the U-Net is the slow part).
+chain (tracking cache, 3.45M video blobs, video ball, features, eleven model fits) is rebuilt from
+the provided data alone in about 40 minutes. The default device is CPU (a couple of hours; the U-Net is the slow part).
 `MTAH_DEVICE=cuda` takes about 25 minutes and is also bit-identical run to run, but GPU and CPU
 builds differ on ~2% of frames because the networks train to slightly different weights, so the
 submitted file names the device used.

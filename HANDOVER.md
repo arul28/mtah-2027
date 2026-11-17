@@ -4,8 +4,8 @@
 `H` / `A` / `D` / `X`, passes `python evaluation/validate_submission.py`.
 
 **SHA-256 prefix:** `7d16f273b7f7b6da` (full digest
-`7d16f273b7f7b6dac0eea0968b7547ac4cce89964518f73b420be9b424385373`). Three independent builds on the
-same GPU stack — one of them starting from an empty `cache/` — produced exactly this file, so any
+`7d16f273b7f7b6dac0eea0968b7547ac4cce89964518f73b420be9b424385373`). Five independent builds on the
+same GPU stack produced exactly this file, two of them starting from an empty `cache/`, so any
 rebuild that disagrees means the environment changed, not the code.
 
 **Regenerate in one command:**
@@ -21,7 +21,8 @@ MTAH_DEVICE=cuda MTAH_TEAM=<team_name> python -m mtah.final
 ```
 
 The first run also scans the tactical video for ball candidates (about 10 minutes on 20 cores). From
-an empty cache the build is about 13 minutes on an RTX 4090 and about two hours on CPU.
+an empty cache the build takes about 40 minutes on an RTX 4090 and about two hours on CPU; with the
+cache warm it is about 30 minutes.
 
 **Dev estimate.** Leave-one-game-out over 7 DFL Bundesliga + 3 Metrica games, evaluated on a dev ball
 degraded to look like this match's video-corrected ball: spellF1 0.751 averaged over the two families
