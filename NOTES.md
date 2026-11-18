@@ -379,7 +379,7 @@ is compared with another's.
   temporal resolution) is no better alone (0.7402 vs 0.7404) and the 4-way blend at weight
   0.20/0.40/0.20/0.20 moves both by +0.0006 at (10,40,0.5) and -0.0013 at (15,40,0.5); Metrica is
   up +0.006/+0.001 but DFL is down -0.004. Inside noise, so the U-Net family stays single-scale.
-- **A caveat learned the hard way**: `experiment4` does not call `final.set_determinism()`, so two
+- **A caveat worth recording**: `experiment4` does not call `final.set_determinism()`, so two
   e4 runs of the *same* configuration differ by about +-0.002 on the per-family numbers (torch
   CUDA conv training is not bit-reproducible without deterministic algorithms). That is the same
   order as most of today's candidate gains, which is exactly why the rejections above are
@@ -423,7 +423,7 @@ is compared with another's.
     0.7505 -> **0.7581** (+0.0076, 7/10 games up, Metrica +0.0077); (15,40,0.5) 0.7551 -> **0.7608**
     (+0.0057, 8/10 up, Metrica +0.0043). Its own sweep: ens 0.3 both 0.7635, DFL 0.7080, Metrica
     0.8190.
-  - Caveat, stated plainly: the dev ball is a simulation built from the match's trusted run lengths,
+  - Caveat: the dev ball is a simulation built from the match's trusted run lengths,
     so a better ball also makes the *simulation* better, and part of the dev gain is that. What
     justifies the change is the label-free evidence above (twice the kicks at the same agreement,
     30% more coverage for the same accuracy against an independent camera), not the dev number.

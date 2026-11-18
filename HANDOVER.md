@@ -1,7 +1,8 @@
 # Handover: what to submit, and where everything is
 
-**File to submit:** `submissions/rx_gpu_FINAL.csv` — 199,319 rows, `frame,label`, labels
-`H` / `A` / `D` / `X`, passes `python evaluation/validate_submission.py`.
+**File to submit:** `submissions/Woosters.csv` (a copy of `rx_gpu_FINAL.csv`, 1.68 MB), 199,319 rows,
+`frame,label`, labels `H` / `A` / `D` / `X`, passes `python evaluation/validate_submission.py`.
+Upload the technical document as `submissions/Woosters.md` (a copy of `TECHNICAL.md`).
 
 **SHA-256 prefix:** `ef07c39a9043831a` (full digest
 `ef07c39a9043831a7a4c43813b8dc1e838553ac3714db91a4adbde35d4185535`). Four independent GPU builds
