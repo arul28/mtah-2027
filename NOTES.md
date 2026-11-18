@@ -9,6 +9,34 @@ ball, shipped decoder): DFL 0.709, Metrica 0.807, both **0.758**; its own best g
 `f6unet_gpu_FINAL.csv` (`7d16f273b7f7b6da`), before that `f6_gpu1.csv` (`a67bcbe837b1abfc`) and
 `vball_gpu_FINAL.csv` (`4b8390df06c0cfed`).
 
+## Rules compliance, re-checked against the organisers' 2026-11-17 email
+
+- **Models.** Every model that produces the submission (LightGBM, the bi-GRUs, the 1-D U-Nets) is
+  trained only on the external games: 7 DFL/Sportec IDSSE matches and 3 Metrica sample games, all
+  other games, none of them the provided match. No parameter of the submission is fitted on the
+  match's possession ground truth or on the match's video.
+- **Video.** The tactical video is used as *input* only: a deterministic white-blob detector plus a
+  Viterbi snap, no learning, no training on video frames. That is the "using as input the video ...
+  automatically" case the email allows.
+- **Statistics from the provided data.** The degradation that makes the external games look like
+  this match (`degrade.py`: ball gap lengths, presence rates, trusted-run lengths, player noise)
+  is measured on this match's *input* tracking and video-derived ball, never on its labels. This is
+  an augmentation recipe, not a fitted model parameter.
+- **Ground truth.** The public 5-minute window is used only as a wiring check (format, alignment,
+  label meaning). No hyperparameter was chosen with it.
+- **No hand labels, no manual corrections.** Nothing about this match was annotated by a human, and
+  no tracking was hand-corrected. Smart Tagging and the broadcast ATD are organisers-provided,
+  machine-generated assets, used as inputs and as an independent check.
+- **Disclosure.** During the ball work, ball candidates were inspected as image crops
+  (`mtah-ext/scripts/vball_crops.py`, `cball_crops.py`) to see what the tracker locked onto. That is
+  inspection of an *intermediate* representation, not of the submission: it never looked at a
+  possession label, and no tuned parameter came out of it (the shipped tracker was chosen before
+  those crops were drawn; the alternative it suggested was rejected on an automatic comparison with
+  the broadcast track, not on the crops).
+- **AI coding agent.** The organisers have explicitly cleared an AI agent reading the match data;
+  nothing was uploaded to a third-party service, everything ran locally on the participant's
+  machine.
+
 ## 2026-11-08: setup and first findings
 
 - Baseline reproduces byte-for-byte; the public-window board matches the README.
